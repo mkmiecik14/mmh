@@ -7,7 +7,7 @@
 source("r-prep.R") # Prepare R workspace
 
 # Loads in data ----
-#test <- 
+ppt_data <- 
   read_excel(path = "../data/ppt.xlsx", sheet = "matt-prep", na = c("MS", "ms")) %>%
   separate(ss, into = c("ss", "session")) %>% # some ss were named with visit
   mutate(
@@ -34,7 +34,31 @@ source("r-prep.R") # Prepare R workspace
       site == "rShoulder",
     force + 15,
     force
-    )
+    ),
+    force = ifelse(
+      ss == 38 & 
+      visit == 1 & 
+      test == "TS" & 
+      trial == 2 & 
+      site == "rKnee",
+      NA,
+      force
+    ),
+    force = ifelse(
+      ss == 49 & 
+      visit == 1 & 
+      test == "TS" & 
+      trial == 2 & 
+      site == "rKnee",
+      25,
+      force
+      )
   ) %>%
-  # left off with participant 38
+  # stopped data editing after ss 49, decided to visualize data for issues
+  mutate(force = ifelse(force == 0, NA, force)) # force cannot be equal to zero
   
+# Saving out data ----
+save(ppt_data, file = "../output/ppt-data.RData") # RData
+write_csv(ppt_data, file = "../output/ppt-data.csv") # CSV 
+
+rm(ppt_data) # cleans script object(s)
