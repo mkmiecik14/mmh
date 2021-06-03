@@ -24,8 +24,26 @@ ppt_data <-
     rate = as.numeric(rate),
     duration = as.numeric(duration)
     ) %>%
+  
+  ################
+  #              #
+  # DATA EDITING #
+  #              #
+  ################
+  
   # data editing due to notes (see notes)
+  # ss 2 seems to have a huge outlier for trial 1 of internal PPT; given that she
+  # has 2 trials, the first was given an NA
   mutate(
+    force = ifelse(
+      ss == 2 & 
+        visit == 1 & 
+        test == "PPT_int" & 
+        trial == 1 & 
+        site == "12",
+      NA,
+      force
+    ), 
     force = ifelse(
       ss == 13 & 
       visit == 1 & 
