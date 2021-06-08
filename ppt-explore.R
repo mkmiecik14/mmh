@@ -323,6 +323,26 @@ ggplot(ts_ss, aes(as.factor(trial), force, group = ss)) +
   labs(x = "Trial", y = "Force (Newtons)") +
   theme_classic()
 
+# Raincloud
+ggplot(
+  ts_ss %>% mutate(trial = as.factor(trial)), 
+  aes(trial, force, group = trial, color = trial, fill = trial)
+  ) +
+  geom_flat_violin(position = position_nudge(x = .2, y = 0), alpha = .8) +
+  geom_point(shape = 1, position = pj, alpha = 2/3) +
+  geom_boxplot(aes(fill = NULL), width = .2, position = position_nudge(x = -.25, y = 0)) +
+  coord_flip() +
+  scale_fill_grey(start = .8, end = .2) +
+  scale_color_grey(start = .8, end = .2) +
+  labs(x = "Site", y = "Force (Newtons)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Histogram
+ggplot(ts_ss, aes(force)) +
+  geom_histogram(binwidth = 3) +
+  facet_wrap(~trial)
+  
 # TS summary by trial
 ts_sum <- 
   ts_ss %>%
@@ -357,10 +377,6 @@ ggplot(ts_sum, aes(trial, M)) +
   labs(x = "Trial", y = "Mean Force (Newtons)", caption = "95% CI error bars.") +
   theme_classic()
 
-ggplot(ts_ss, aes(force)) +
-  geom_histogram(binwidth = 3) +
-  facet_wrap(~trial)
-
 # Linear modeling to look at the intercept and slope
 # models
 ts_mod <- 
@@ -377,12 +393,69 @@ ts_est <-
     term = gsub("[\\(\\)]", "", term), 
     term = gsub("scaletrial, scale = FALSE", "trial_mc", term)
     )
-ggplot(ts_est %>% filter(term %in% "Intercept"), aes(estimate)) +
-  geom_histogram()
 
+# Intercepts
+ggplot(ts_est %>% filter(term %in% "Intercept"), aes(estimate)) +
+  geom_histogram(binwidth = 4)
+
+# Slopes
 ggplot(ts_est %>% filter(term %in% "trial_mc"), aes(estimate)) +
   geom_histogram()
 
+# Participants with outlier slopes
+outlier_slopes <- 
+  ts_est %>% filter(term %in% "trial_mc", estimate < -1 | estimate > 1)
 
-ggplot(ts_est %>% filter(term %in% "trial_mc"), aes(estimate, reorder(ss, estimate))) +
-  geom_point()
+# Plotting outlier slopes
+ts_ss %>% 
+  filter(ss %in% outlier_slopes$ss) %>%
+  ggplot(., aes(as.factor(trial), force, group = ss)) +
+  geom_point(position = pd, shape = 16, alpha = 1/3) +
+  geom_path(position = pd, alpha = 1/3) +
+  labs(x = "Trial", y = "Force (Newtons)") +
+  theme_classic()
+  
+# Estimating mean intercept and slope
+ts_lvl2_mod <- 
+  ts_est %>%
+  nest_by(term) %>%
+  mutate(mod = list(lm(estimate ~ 1, data = data)))
+
+# Level 2 estimates
+ts_lvl2_mod %>%
+  summarise(broom::tidy(mod)) %>%
+  ungroup() %>%
+  mutate(
+    source = unique(ts_est$term),
+    term = gsub("[\\(\\)]", "", term),
+  )
+
+# Slopes 
+ggplot(ts_ss, aes(trial, force, group = ss)) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", alpha = 1/3)
+
+# Examining the difference between the first and 10th or final rating
+# see Hellman et al., 2020
+ts_diff <- 
+  ts_ss %>% 
+  group_by(ss) %>%
+  filter(trial == min(trial) | trial == max(trial)) %>% # filters out inter-trials
+  summarise(
+    ts = -diff(force), # positive values indicate increased sensitivity 
+    min = min(trial), 
+    max = max(trial)
+    ) %>% 
+  ungroup()
+
+ts_diff %>%
+  summarise(
+    M = mean(ts), 
+    N = n(), 
+    SD = sd(ts), 
+    SEM = SD/sqrt(N), 
+    LL = as.numeric(t.test(ts, conf.level = 0.95)$conf.int[1]),
+    UL = as.numeric(t.test(ts, conf.level = 0.95)$conf.int[2])
+    )
+
+ts_diff %>% count(max)
+
