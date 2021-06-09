@@ -209,14 +209,296 @@ ts_max_ss <-
   summarise(max_ts = max(trial)) %>%
   ungroup()
 
+# Histogram - most subjects reach final trial
 ggplot(ts_max_ss, aes(max_ts)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = 0:10, minor_breaks = NULL) +
+  labs(x = "Trial", y = "Frequency") +
+  theme_minimal()
+
+# Temporal Summation MLM 
+ggplot(ts_ss, aes(trial, value, group = ss)) +
+  stat_smooth(
+    method = "lm",
+    geom = "line", 
+    alpha = 1/2, 
+    se = FALSE
+    ) +
+  scale_x_continuous(breaks = 0:10, minor_breaks = NULL) +
+  scale_y_continuous(breaks = 0:10, minor_breaks = NULL) +
+  theme_classic()
+
+# First step is to subtract baseline from everyone
+ts_ss_blcorrected <- 
+  ts_ss %>%
+  pivot_wider(id_cols = ss, names_from = c(name, trial), values_from = value) %>%
+  mutate(across(b_1:k_10, ~ .x - a_0)) %>% # subtracts baseline from each trial
+  select(-a_0) %>% # gets rid of baseline column
+  pivot_longer(!ss) %>% 
+  separate(name, into = c("name", "trial")) %>%
+  mutate(trial = as.numeric(trial)) %>%
+  filter(complete.cases(value))
+
+# level 1 models
+lvl1_ts_mod <-
+  ts_ss_blcorrected %>%
+  nest_by(ss) %>%
+  mutate(mod = list(lm(value ~ 1 + scale(trial, scale = FALSE), data = data)))
+
+# level 1 estimates
+lvl1_ts_est <- 
+  lvl1_ts_mod %>%
+  summarise(broom::tidy(mod)) %>%
+  ungroup() %>%
+  mutate(
+    term = gsub("[\\(\\)]", "", term), 
+    term = gsub("scaletrial, scale = FALSE", "trial_mc", term)
+  )
+
+# Participants with too little data (i.e., only 1 trial:
+lvl1_ts_est %>% filter(!complete.cases(estimate))
+ts_ss_blcorrected %>% filter(ss %in% c(15,85,316))
+# be sure to remove these
+
+lvl1_ts_est_clean <- 
+  lvl1_ts_est %>% 
+  filter(ss %nin% c(15, 85, 316)) # participants excluded for only 1 trial
+
+# Intercepts
+ggplot(lvl1_ts_est_clean %>% filter(term %in% "Intercept"), aes(estimate)) + 
+  geom_histogram(binwidth = .5) +
+   coord_cartesian(xlim = c(0, 10))
+
+# Slopes
+ggplot(lvl1_ts_est_clean %>% filter(term %in% "trial_mc"), aes(estimate)) + 
+  geom_histogram(binwidth = .2)
+
+# These participants had high slopes!
+lvl1_ts_est_clean %>% filter(term %in% "trial_mc", estimate > 1.5)
+ts_ss_blcorrected %>% filter(ss %in% c(16,67,129,226))
+
+
+# After pain ratings for PPTs ----
+ppt_pain <- 
+  redcap_ppt_data_ss %>%
+  select(
+    ss,
+    bl_rshoulder = pt2a_shoulder,
+    bl_rhip = pt2b_hip,
+    bl_rknee = pt2c_knee,
+    bl_forehead = pt2d_forehead,
+    bl_vaginal = pt2e_vag,
+    t1_rshoulder = pt3a1,
+    t1_rhip = pt3b1,
+    t1_rknee = pt3c1,
+    t1_forehead = pt3d1,
+    t2_rshoulder = pt3a2,
+    t2_rhip = pt3b2,
+    t2_rknee = pt3c2,
+    t2_forehead = pt3d2,
+    t1_12 = pt3e1,
+    t1_5 = pt3f1,
+    t1_6 = pt3g1,
+    t1_7 = pt3h1,
+    t2_12 = pt3e2,
+    t2_5 = pt3f2,
+    t2_6 = pt3g2,
+    t2_7 = pt3h2
+  ) %>%
+  pivot_longer(!ss) %>%
+  separate(name, into = c("time", "site")) %>%
+  mutate(time = factor(time), time = fct_relevel(time, c("bl", "t1", "t2"))) %>%
+  filter(complete.cases(value))
+
+# External PPTs
+ppt_pain_ext <-
+  ppt_pain %>%
+  filter(site %in% c("rshoulder", "rhip", "rknee", "forehead")) %>%
+  pivot_wider(id_cols = ss, names_from = c(time, site), values_from = value) %>%
+  mutate(
+    t1_rshoulder = t1_rshoulder - bl_rshoulder,
+    t1_rhip =  t1_rhip - bl_rhip,
+    t1_rknee =  t1_rknee - bl_rknee,
+    t1_forehead = t1_forehead - bl_forehead,
+    t2_rshoulder =  t2_rshoulder - bl_rshoulder,
+    t2_rhip = t2_rhip - bl_rhip,
+    t2_rknee = t2_rknee - bl_rknee,
+    t2_forehead = t2_forehead - bl_forehead
+    ) %>%
+  select(-bl_rshoulder, -bl_rhip, -bl_rknee, -bl_forehead) %>%
+  pivot_longer(!ss) %>%
+  separate(name, into = c("time", "site")) %>%
+  filter(complete.cases(value))
+
+pd <- position_dodge(width = .3)
+ggplot(ppt_pain_ext, aes(time, value, group = ss)) +
+  geom_point(alpha = 1/3, position = pd) +
+  geom_line(position = pd) +
+  facet_wrap(~site)
+
+# Averaging trials 1 and 2 together (both were already corrected for baseline)
+ppt_pain_ext_ss <- 
+  ppt_pain_ext %>% 
+  group_by(ss, site) %>%
+  summarise(m = mean(value), n = n()) %>%
+  ungroup()
+ppt_pain_ext_ss %>% filter(n < 2) # everyone included has two measures here
+
+# Summary
+ppt_pain_ext_sum <-
+  ppt_pain_ext_ss %>%
+  group_by(site) %>%
+  summarise(
+    M = mean(m), 
+    N = n(), 
+    SD = sd(m), 
+    SEM = SD/sqrt(N), 
+    LL = as.numeric(t.test(m, conf.level = 0.95)$conf.int[1]),
+    UL = as.numeric(t.test(m, conf.level = 0.95)$conf.int[2])
+    ) %>%
+  ungroup()
+
+# Summary plot for NRS external sites (corrected for baseline)
+pj <- position_jitter(width = .1, height = .1)
+pn <- position_nudge(x = .3, y = 0)
+ggplot(ppt_pain_ext_ss, aes(site, m, color = site)) +
+  geom_point(alpha = 1/3, position = pj) +
+  geom_point(data = ppt_pain_ext_sum, aes(y=M), position = pn) +
+  geom_errorbar(
+    data = ppt_pain_ext_sum, 
+    aes(y=M, ymin = LL, ymax = UL), 
+    position = pn, 
+    width = .2
+    ) +
+  labs(x = "Site", y = "Mean NRS (baesline adjusted)", caption = "95% CI error bars.") +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Vaginal afterpain (corrected for baseline)
+# Ixternal PPTs
+ppt_pain_int <- 
+  ppt_pain %>%
+  filter(site %in% c("vaginal", "12", "5", "6", "7")) %>%
+  pivot_wider(id_cols = ss, names_from = c(time, site), values_from = value) %>%
+  mutate(across(t1_12:t2_7, ~ .x - bl_vaginal)) %>% # subtracting away baseline
+  select(-bl_vaginal) %>% # removes baseline
+  pivot_longer(!ss) %>%
+  separate(name, into = c("time", "site")) %>%
+  filter(complete.cases(value))
+
+# Averaging trials 1 and 2 together (both were already corrected for baseline)
+ppt_pain_int_ss <- 
+  ppt_pain_int %>% 
+  group_by(ss, site) %>%
+  summarise(m = mean(value), n = n()) %>%
+  ungroup()
+ppt_pain_int_ss %>% filter(n < 2) # two participants do not have 2 trials
+
+# Summary
+ppt_pain_int_sum <-
+  ppt_pain_int_ss %>%
+  group_by(site) %>%
+  summarise(
+    M = mean(m), 
+    N = n(), 
+    SD = sd(m), 
+    SEM = SD/sqrt(N), 
+    LL = as.numeric(t.test(m, conf.level = 0.95)$conf.int[1]),
+    UL = as.numeric(t.test(m, conf.level = 0.95)$conf.int[2])
+  ) %>%
+  ungroup()
+
+# Summary plot for NRS external sites (corrected for baseline)
+pj <- position_jitter(width = .1, height = .1)
+pn <- position_nudge(x = .3, y = 0)
+ggplot(ppt_pain_int_ss, aes(site, m, color = site)) +
+  geom_point(alpha = 1/3, position = pj) +
+  geom_point(data = ppt_pain_int_sum, aes(y=M), position = pn) +
+  geom_errorbar(
+    data = ppt_pain_int_sum, 
+    aes(y=M, ymin = LL, ymax = UL), 
+    position = pn, 
+    width = .2
+  ) +
+  labs(x = "Site", y = "Mean NRS (baesline adjusted)", caption = "95% CI error bars.") +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+# vaginal mcgill
+vaginal_mcgill_ss <- 
+  redcap_ppt_data_ss %>%
+  select(
+    ss,
+    sharp = pt3_5a_sharp,
+    pressing = pt3_5b_pressing,
+    dull = pt3_5c_dull,
+    prickling = pt3_5d_prickling
+    ) %>%
+  pivot_longer(!ss) %>%
+  filter(complete.cases(value))
+  
+# Summary
+vaginal_mcgill_sum <- 
+  vaginal_mcgill_ss %>%
+  group_by(name) %>%
+  summarise(
+    M = mean(value), 
+    N = n(), 
+    SD = sd(value), 
+    SEM = SD/sqrt(N),
+    LL = as.numeric(t.test(value, conf.level = 0.95)$conf.int[1]),
+    UL = as.numeric(t.test(value, conf.level = 0.95)$conf.int[2])
+  ) %>%
+  ungroup()
+
+# McGill plot!
+pj <- position_jitter(width = .1)
+ggplot(vaginal_mcgill_ss, aes(name, value, color = name)) +
+  geom_point(alpha = 1/3, position = pj) +
+  geom_flat_violin(aes(fill = name), position = position_nudge(x = .2, y = 0), alpha = 1/3) +
+  geom_boxplot(position = position_nudge(x = -.2, y = 0), width = .1) +
+  labs(x = "McGill Descriptor", y = "Rating") +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium) +
+  scale_fill_manual(values = ghibli_palettes$PonyoMedium) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# cold pain
+coldpain_data <- 
+  redcap_ppt_data_ss %>%
+  select(ss, watertemp = pt_watertemp, coldpain = pt4b_cpmwater)
+
+coldpain_data_ss <- 
+  coldpain_data %>%
+  pivot_longer(!ss) %>%
+  filter(complete.cases(value))
+
+coldpain_data_sum <- 
+  coldpain_data_ss %>%
+  group_by(name) %>%
+  summarise(
+    M = mean(value), 
+    N = n(), 
+    SD = sd(value), 
+    SEM = SD/sqrt(N),
+    LL = as.numeric(t.test(value, conf.level = 0.95)$conf.int[1]),
+    UL = as.numeric(t.test(value, conf.level = 0.95)$conf.int[2])
+  )
+
+ggplot(coldpain_data_ss %>% filter(name %in% "coldpain"), aes(value)) +
   geom_histogram(binwidth = 1)
 
-# run MLM for TS (be sure to cap at 6)
+ggplot(coldpain_data_ss %>% filter(name %in% "watertemp"), aes(value)) +
+  geom_histogram(binwidth = 1)
 
+coldpain_data_wide <- coldpain_data %>% filter(complete.cases(.))
+  ggplot(coldpain_data_wide, aes(watertemp, coldpain)) +
+  geom_point(position = "jitter") +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_classic()
 
-# after pain ratings during PPTs
-
-
-
+cor.test(x = coldpain_data_wide$watertemp, coldpain_data_wide$coldpain)
 
