@@ -376,7 +376,7 @@ ggplot(ppt_pain_ext_ss, aes(site, m, color = site)) +
   theme(legend.position = "none")
 
 # Vaginal afterpain (corrected for baseline)
-# Ixternal PPTs
+# Internal PPTs
 ppt_pain_int <- 
   ppt_pain %>%
   filter(site %in% c("vaginal", "12", "5", "6", "7")) %>%
@@ -466,16 +466,20 @@ ggplot(vaginal_mcgill_ss, aes(name, value, color = name)) +
   theme_minimal() +
   theme(legend.position = "none")
 
-# cold pain
+# Cold pain ----
+
+# Extracts data (pain and water temp)
 coldpain_data <- 
   redcap_ppt_data_ss %>%
   select(ss, watertemp = pt_watertemp, coldpain = pt4b_cpmwater)
 
+# Long format
 coldpain_data_ss <- 
   coldpain_data %>%
   pivot_longer(!ss) %>%
   filter(complete.cases(value))
 
+# Summary data
 coldpain_data_sum <- 
   coldpain_data_ss %>%
   group_by(name) %>%
@@ -488,17 +492,30 @@ coldpain_data_sum <-
     UL = as.numeric(t.test(value, conf.level = 0.95)$conf.int[2])
   )
 
+# Histogram of cold pain
 ggplot(coldpain_data_ss %>% filter(name %in% "coldpain"), aes(value)) +
-  geom_histogram(binwidth = 1)
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = 0:10, minor_breaks = NULL) +
+  labs(x = "Cold Pain NRS", y = "Frequency")
 
+# Histogram of water temperature
 ggplot(coldpain_data_ss %>% filter(name %in% "watertemp"), aes(value)) +
-  geom_histogram(binwidth = 1)
+  geom_histogram(binwidth = 1) +
+  labs(x = "Water Temperature (Celsius)", y = "Frequency")
 
+# Wide data that rids of missing data (list-wise) for correlation
 coldpain_data_wide <- coldpain_data %>% filter(complete.cases(.))
-  ggplot(coldpain_data_wide, aes(watertemp, coldpain)) +
+  
+# Scatter plot
+ggplot(coldpain_data_wide, aes(watertemp, coldpain)) +
   geom_point(position = "jitter") +
   geom_smooth(method = "lm", se = TRUE) +
   theme_classic()
 
+# Correlation
 cor.test(x = coldpain_data_wide$watertemp, coldpain_data_wide$coldpain)
 
+# Calculating Residuals
+cold_mod <- lm(coldpain ~ 1 + watertemp, data = coldpain_data_wide)
+cold_mod_aug <- broom::augment(cold_mod)
+ggplot(cold_mod_aug, aes(.fitted)) + geom_histogram(binwidth = .2) # resid histo

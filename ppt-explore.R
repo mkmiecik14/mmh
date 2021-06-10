@@ -222,7 +222,7 @@ cpm_ss_long <-
     ) %>%
   filter(complete.cases(diff_force)) # elimiates missing data
   
-# seperate dfs for knee and shoulder
+# separate dfs for knee and shoulder
 cpm_lKnee <- cpm_ss_long %>% filter(site %in% "lKnee")          # lKnee
 cpm_lShoulder <- cpm_ss_long %>% filter(site %in% "lShoulder")  # lShoulder
 
@@ -277,7 +277,7 @@ cpm_ss_lShoulder <-
     trial == 1 | trial == 2 # trial 1 vs. 2
   )
 
-# LEFT KNEE SUMMARY
+# LEFT SHOULDER SUMMARY
 cpm_ss_lShoulder_sum <- 
   cpm_ss_lShoulder %>%
   group_by(trial) %>%
