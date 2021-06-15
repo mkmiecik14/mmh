@@ -10,11 +10,6 @@
 #   - Variables for supplemental projections or coloring
 #   - greater score indicates greater pain, greater unpleas, worse outcome
 
-# Kevin:
-# PPTS (both ext and int) will hang together (some bladder onto this factor)
-# second factor - after pain ratings and visual + audio
-# CPM and TS will load elsewhere
-
 source("r-prep.R") # Prepares R workspace
 
 # Loads data ----
@@ -130,7 +125,7 @@ redcap_ppt_data_ss <-
   left_join(ss_codes_ss, bind_rows(arm1_temp, arm2_temp), by = "ss")
 
 # External Thresholds
-ext_N_pca_data <- 
+ext_N_pca_data_temp <- 
   left_join(ss_codes_ss, ppt_data, by = "ss") %>%
   filter(test == "PPT_ext", visit == 1) %>%
   group_by(ss, site) %>%
@@ -140,8 +135,11 @@ ext_N_pca_data <-
   pivot_wider(id_cols = ss, names_from = site, values_from = m) %>%
   rename_with(~paste0("ppt_N_", .), .cols = !ss)
 
+# to ensure equivalent df size
+ext_N_pca_data <- left_join(ss_codes_ss, ext_N_pca_data_temp, by = "ss")
+  
 # Internal Thresholds
-int_N_pca_data <-
+int_N_pca_data_temp <-
   left_join(ss_codes_ss, ppt_data, by = "ss") %>%
   filter(test == "PPT_int", visit == 1) %>%
   group_by(ss, site) %>%
@@ -151,11 +149,22 @@ int_N_pca_data <-
   pivot_wider(id_cols = ss, names_from = site, values_from = m) %>%
   rename_with(~paste0("ppt_N_", .), .cols = !ss)
 
+# to ensure equivalent df size
+int_N_pca_data <- left_join(ss_codes_ss, int_N_pca_data_temp, by = "ss")
+
 save(ext_N_pca_data, file = "../output/ext-N-pca-data.RData")     # RData
 write_csv(ext_N_pca_data, "../output/ext-N-pca-data.csv")         # CSV
 save(int_N_pca_data, file = "../output/int-N-pca-data.RData")     # RData
 write_csv(int_N_pca_data, "../output/int-N-pca-data.csv")         # CSV
-rm(arm1_temp, arm2_temp, ext_N_pca_data, int_N_pca_data ) # removes this section's objects
+# removes this section's objects
+rm(
+  arm1_temp, 
+  arm2_temp, 
+  ext_N_pca_data_temp,
+  int_N_pca_data_temp,
+  ext_N_pca_data, 
+  int_N_pca_data 
+  ) 
 
 
 ###############################
@@ -166,7 +175,7 @@ rm(arm1_temp, arm2_temp, ext_N_pca_data, int_N_pca_data ) # removes this section
 
 #! use left knee as there are more participants with this measurement than 
 # left shoulder
-cpm_pca_data <- 
+cpm_pca_data_temp <- 
   left_join(ss_codes_ss, ppt_data, by = "ss") %>%
   filter(
     test %in% "CPM", # narrows down to CPM only 
@@ -179,9 +188,12 @@ cpm_pca_data <-
   mutate(cpm_lknee = (`2` - `1`)*-1) %>%
   select(ss, cpm_lknee)
 
+# to ensure equivalent df size
+cpm_pca_data <- left_join(ss_codes_ss, cpm_pca_data_temp, by = "ss")
+
 save(cpm_pca_data, file = "../output/cpm-pca-data.RData") # RData
 write_csv(cpm_pca_data, "../output/cpm-pca-data.csv")     # CSV
-rm(cpm_pca_data) # removes this section's objects
+rm(cpm_pca_data_temp, cpm_pca_data) # removes this section's objects
 
 
 ######################
