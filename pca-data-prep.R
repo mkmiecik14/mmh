@@ -25,33 +25,12 @@ load("../output/ppt-data.RData")            # PPT data
 load("../output/auditory-behav-data.RData") # auditory data
 load("../output/vis-behav-data.RData")      # visual data
 
-# for inner_joins
+# This data frame helps ensure the same number of participants for each data
+# element and helps with *_joins()
 ss_codes_ss <- 
   ss_codes %>% 
   filter(group %nin% c("KID", "EXCLUDE")) %>% 
   select(ss)
-
-# The PPT data from redcap need to be cleaned for subject ID numbers, as the 
-# record numbers do not line up from arm 1 and arm 2
-
-# First step is to align record numbers with ss id's across arms 1 and 2
-arm1_temp <- 
-  redcap_ppt_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm2r)
-arm2_temp <- 
-  redcap_ppt_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm1r)
-
-# this should now have correct record numbers to ss ids
-redcap_ppt_data_ss <- 
-  # combines arm1 and arm2 while removing ss that are KIDS or EXCLUDE (see above)
-  left_join(ss_codes_ss, bind_rows(arm1_temp, arm2_temp), by = "ss")
 
 ###############
 #             #
@@ -85,6 +64,10 @@ vis_pca_data <-
   rename(vis_mean = Intercept, vis_slope = stim_mc) %>%
   select(-`NA`) # getting rid of mysterious NA column
 
+save(vis_pca_data, file = "../output/vis-pca-data.RData") # RData
+write_csv(vis_pca_data, "../output/vis-pca-data.csv")     # CSV
+rm(lvl1_vis_mod, lvl1_vis_est, vis_pca_data) # removes this section's objects
+
 #################
 #               #
 # AUDITORY DATA #
@@ -114,11 +97,37 @@ aud_pca_data <-
   rename(aud_mean = Intercept, aud_slope = stim_mc) %>%
   select(-`NA`) # getting rid of mysterious NA column
 
+save(aud_pca_data, file = "../output/aud-pca-data.RData") # RData
+write_csv(aud_pca_data, "../output/aud-pca-data.csv")     # CSV
+rm(lvl1_aud_mod, lvl1_aud_est, aud_pca_data) # removes this section's objects
+
 #######
 #     #
 # PPT #
 #     #
 #######
+
+# The PPT data from redcap need to be cleaned for subject ID numbers, as the 
+# record numbers do not line up from arm 1 and arm 2
+
+# First step is to align record numbers with ss id's across arms 1 and 2
+arm1_temp <- 
+  redcap_ppt_data %>% 
+  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
+  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
+  mutate(ss = ss.y) %>%
+  select(-ss.x, -ss.y, -arm1ref, -arm2r)
+arm2_temp <- 
+  redcap_ppt_data %>% 
+  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
+  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
+  mutate(ss = ss.y) %>%
+  select(-ss.x, -ss.y, -arm1ref, -arm1r)
+
+# this should now have correct record numbers to ss ids
+redcap_ppt_data_ss <- 
+  # combines arm1 and arm2 while removing ss that are KIDS or EXCLUDE (see above)
+  left_join(ss_codes_ss, bind_rows(arm1_temp, arm2_temp), by = "ss")
 
 # External Thresholds
 ext_N_pca_data <- 
@@ -142,6 +151,12 @@ int_N_pca_data <-
   pivot_wider(id_cols = ss, names_from = site, values_from = m) %>%
   rename_with(~paste0("ppt_N_", .), .cols = !ss)
 
+save(ext_N_pca_data, file = "../output/ext-N-pca-data.RData")     # RData
+write_csv(ext_N_pca_data, "../output/ext-N-pca-data.csv")         # CSV
+save(int_N_pca_data, file = "../output/int-N-pca-data.RData")     # RData
+write_csv(int_N_pca_data, "../output/int-N-pca-data.csv")         # CSV
+rm(arm1_temp, arm2_temp, ext_N_pca_data, int_N_pca_data ) # removes this section's objects
+
 
 ###############################
 #                             #
@@ -149,7 +164,8 @@ int_N_pca_data <-
 #                             #
 ###############################
 
-#! use left knee as there are more people with this measurement than left shoulder
+#! use left knee as there are more participants with this measurement than 
+# left shoulder
 cpm_pca_data <- 
   left_join(ss_codes_ss, ppt_data, by = "ss") %>%
   filter(
@@ -162,6 +178,10 @@ cpm_pca_data <-
   # calculation of the CPM effect; multiplied by -1 for PCA (higher = worse CPM)
   mutate(cpm_lknee = (`2` - `1`)*-1) %>%
   select(ss, cpm_lknee)
+
+save(cpm_pca_data, file = "../output/cpm-pca-data.RData") # RData
+write_csv(cpm_pca_data, "../output/cpm-pca-data.csv")     # CSV
+rm(cpm_pca_data) # removes this section's objects
 
 
 ######################
@@ -221,6 +241,10 @@ ts_pca_data <-
   left_join(ss_codes_ss, ts_est, by = "ss") %>%
   left_join(., ts_mod %>% select(ss, ts_max), by = "ss")
 
+save(ts_pca_data, file = "../output/ts-pca-data.RData") # RData
+write_csv(ts_pca_data, "../output/ts-pca-data.csv")     # CSV
+rm(conv_table, ts_mod, ts_est, ts_pca_data) # removes this section's objects
+
 #####################
 #                   #
 # BLADDER TASK DATA #
@@ -267,6 +291,10 @@ bladder_pca_data <-
     mt_vol = bt12a_mtvol
   )
 
+save(bladder_pca_data, file = "../output/bladder-pca-data.RData") # RData
+write_csv(bladder_pca_data, "../output/bladder-pca-data.csv")     # CSV
+rm(arm1_temp, arm2_temp, bladder_pca_data) # removes this section's objects
+# bladder_data_ss not removed because it is used during McGill descriptors
 
 ###################
 #                 #
@@ -335,6 +363,11 @@ afterpain_pca_data <-
     values_from = after_pain
     )
 
+save(afterpain_pca_data, file = "../output/afterpain-pca-data.RData") # RData
+write_csv(afterpain_pca_data, "../output/afterpain-pca-data.csv")     # CSV
+rm(after_pain_long, after_pain_sum, afterpain_pca_data) # removes this section's objects
+
+
 ######################
 #                    #
 # McGill Descriptors #
@@ -363,7 +396,13 @@ vaginal_mcgill_ss <-
     vag_prickling = pt3_5d_prickling
   ) 
 
+# McGill PCA data
 mcgill_pca_data <- inner_join(bladder_mcgill_ss, vaginal_mcgill_ss, by = "ss")
+
+save(mcgill_pca_data, file = "../output/mcgill-pca-data.RData") # RData
+write_csv(mcgill_pca_data, "../output/mcgill-pca-data.csv")     # CSV
+rm(bladder_mcgill_ss, vaginal_mcgill_ss, mcgill_pca_data, bladder_data_ss) # removes this section's objects
+
 
 #############
 #           #
@@ -371,17 +410,52 @@ mcgill_pca_data <- inner_join(bladder_mcgill_ss, vaginal_mcgill_ss, by = "ss")
 #           #
 #############
 
-redcap_ppt_data_ss %>%
+# Selects variables of interest
+coldpain_data <- 
+  redcap_ppt_data_ss %>%
   select(ss, watertemp = pt_watertemp, coldpain = pt4b_cpmwater)
 
+# removes cases listwise for modeling
+coldpain_data_ss <- coldpain_data %>% filter(complete.cases(.))
 
-coldpain_data %>% filter(complete.cases(.))
+# Corrects for effect of water temperature (see explore script) by extracting
+# residuals from linear model
+coldpain_mod <- lm(coldpain ~ 1 + watertemp, data = coldpain_data_ss)
+coldpain_resids <- 
+  tibble(
+    ss = coldpain_data_ss$ss, # subject numbers
+    coldpain_resid = broom::augment(coldpain_mod)$.resid # residuals
+  )
 
-# be sure to correct for water temp
+# Coldpain data for PCA
+coldpain_pca_data <- 
+  ss_codes_ss %>% 
+  left_join(., coldpain_data, by = "ss") %>%
+  left_join(., coldpain_resids, by = "ss") %>%
+  select(-watertemp) # don't need this for PCA
 
+save(coldpain_pca_data, file = "../output/coldpain-pca-data.RData") # RData
+write_csv(coldpain_pca_data, "../output/coldpain-pca-data.csv")     # CSV
+# removes this section's objects
+rm(
+  coldpain_data, 
+  coldpain_data_ss, 
+  coldpain_mod, 
+  coldpain_resids, 
+  coldpain_pca_data
+  ) 
 
-  
-
+# Remaining script objects to remove
+rm(
+  ss_codes, 
+  ss_codes_ss, 
+  aud_edata, 
+  bladder_data, 
+  ppt_data, 
+  redcap_ppt_data, 
+  redcap_ppt_data_ss,
+  vis_behav_data
+)
 
 
 
