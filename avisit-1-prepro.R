@@ -23,21 +23,52 @@ arm2_avisit1_data <-
   rename(subjectid = subject_id) %>% # renaming columns to be consistent with arm1
   mutate(redcap_event_name = "assessment_visit_1_arm_2") # signals arm2 participant
   
-avisit1_data <- bind_rows(arm1_avisit1_data, arm2_avisit1_data) %>% # combines arms 1 and 2
+# combines arms 1 and 2
+avisit1_data <- 
+  bind_rows(arm1_avisit1_data, arm2_avisit1_data) %>% 
   rename(ss = subjectid) # to be consistent with ss_codes
+
+load("../output/ss-codes.RData") # Loads in ss_codes
+
+# First step is to align record numbers with ss id's across arms 1 and 2
+arm1_temp <- 
+  avisit1_data %>% 
+  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
+  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
+  mutate(ss = ss.y) %>%
+  select(-ss.x, -ss.y, -arm1ref, -arm2r)
+arm2_temp <- 
+  avisit1_data %>% 
+  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
+  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
+  mutate(ss = ss.y) %>%
+  select(-ss.x, -ss.y, -arm1ref, -arm1r)
+
+# Combines arm 1 and 2 after aligning ss num,bers with record numbers
+avisit1_data_ss <- bind_rows(arm1_temp, arm2_temp)
 
 
 # Now I will focus on specific questionnaires/tasks required for analysis:
 
 # Bladder test ----
 bladder_data <- 
-  avisit1_data %>%
+  avisit1_data_ss %>%
   select(
     record_number, 
     redcap_event_name, 
     ss,
     starts_with("bt")
-    )
+    ) %>%
+  # DATA EDITING - some participants had missing data in REDCAP but had these
+  # values written down in their binders (paper copies)
+  mutate(
+    # These  participants capped out so we look at their 120 min mark
+    bt10c_mturg = ifelse(ss == 134 & is.na(bt10c_mturg), 88, bt10c_mturg),
+    bt10c_mturg = ifelse(ss == 166 & is.na(bt10c_mturg), 64, bt10c_mturg),
+    bt10c_mtpain = ifelse(ss == 134 & is.na(bt10c_mtpain), 1, bt10c_mtpain),
+    bt10c_mtpain = ifelse(ss == 166 & is.na(bt10c_mtpain), 3, bt10c_mtpain)
+  )
+
 
 # Saving out data
 save(bladder_data, file = "../output/bladder-data.RData") # RData
@@ -45,13 +76,20 @@ write_csv(bladder_data, file = "../output/bladder-data.csv") # CSV
 
 # PPTs ----
 redcap_ppt_data <- 
-  avisit1_data %>%
+  avisit1_data_ss %>%
   select(
     record_number, 
     redcap_event_name, 
     ss,
     starts_with("pt")
-  )
+  ) %>%
+  # DATA EDITING - some participants had missing data in REDCAP but had these
+  # values written down in their binders (paper copies)
+  mutate(
+    pt4b_cpmwater = ifelse(ss == 4 & is.na(pt4b_cpmwater), 4, pt4b_cpmwater),
+    pt3_5d_prickling = ifelse(ss == 62 & is.na(pt3_5d_prickling), 0, pt3_5d_prickling),
+    pt3_5a_sharp = ifelse(ss == 88 & is.na(pt3_5a_sharp), 3, pt3_5a_sharp)
+    )
 
 # Saving out data
 save(redcap_ppt_data, file = "../output/redcap-ppt-data.RData") # RData
@@ -63,5 +101,9 @@ rm(
   arm2_avisit1_data, 
   avisit1_data, 
   bladder_data, 
-  redcap_ppt_data
+  redcap_ppt_data,
+  arm1_temp,
+  arm2_temp,
+  ss_codes,
+  avisit1_data_ss
   )

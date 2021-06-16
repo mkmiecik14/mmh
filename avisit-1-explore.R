@@ -13,24 +13,15 @@ load("../output/ss-codes.RData") # subject codes
 
 # Bladder data ----
 
-# First step is to align record numbers with ss id's across arms 1 and 2
-arm1_temp <- 
-  bladder_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm2r)
-arm2_temp <- 
-  bladder_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm1r)
+# This data frame helps ensure the same number of participants for each data
+# element and helps with *_joins()
+ss_codes_ss <- 
+  ss_codes %>% 
+  filter(group %nin% c("KID", "EXCLUDE")) %>% 
+  select(ss)
 
-# this should now have correct record numbers to ss ids
-bladder_data_ss <- 
-  bind_rows(arm1_temp, arm2_temp) %>% # combines arm1 and arm2
-  filter(group %in% c("HC", "PBS", "DYSB", "DYS", "PAIN")) # eliminates NAs and EXCLUDE
+# Excludes participants that are "Kids" or marked for exclusion
+bladder_data_ss <- bladder_data %>% filter(ss %in% ss_codes_ss$ss)
 
 # Looking at pain, urgency, volume, time for:
 #   baseline (0)
@@ -132,24 +123,8 @@ ggplot(bladder_mcgill_ss, aes(mcgill, value, color = mcgill)) +
 
 # PPT Data from Redcap ----
 
-# First step is to align record numbers with ss id's across arms 1 and 2
-arm1_temp <- 
-  redcap_ppt_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm2r)
-arm2_temp <- 
-  redcap_ppt_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm1r)
-
-# this should now have correct record numers to ss ids
-redcap_ppt_data_ss <- 
-  bind_rows(arm1_temp, arm2_temp) %>% # combines arm1 and arm2
-  filter(group %in% c("HC", "PBS", "DYSB", "DYS", "PAIN")) # eliminates NAs and EXCLUDE
+# Excludes participants
+redcap_ppt_data_ss <- redcap_ppt_data %>% filter(ss %in% ss_codes_ss$ss)
 
 # Temporal Summation NRS ratings
 conv_table <- tibble(name = letters, trial = 0:25)

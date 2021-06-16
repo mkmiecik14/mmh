@@ -70,8 +70,59 @@ ppt_data <-
       site == "rKnee",
       25,
       force
-      )
+      ),
+    force = ifelse(
+      ss == 61 & 
+        visit == 1 & 
+        test == "PPT_int" & 
+        site == 5,
+      7.5, # see notes (replaced with middle value)
+      force
+    ),
+    force = ifelse(
+      ss == 116 & 
+        visit == 1 & 
+        test == "PPT_ext" & 
+        site == "rForehead",
+      7.5, # see notes (replaced with middle value)
+      force
+    ),
+    force = ifelse(
+      ss == 58 & 
+        visit == 1 & 
+        test == "PPT_int" & 
+        site == 5,
+      4, # see notes (replaced with middle value)
+      force
+    ),
+    force = ifelse(
+      ss == 58 & 
+        visit == 1 & 
+        test == "PPT_int" & 
+        site == 6,
+      7, # see notes (replaced with 7 as best estimate)
+      force
+    ),
+    force = ifelse(
+      ss == 59 & 
+        visit == 1 & 
+        test == "PPT_int" &
+        trial == 1 &
+        site == 5,
+      3, # see notes
+      force
+    ),
+    force = ifelse(
+      ss == 322 & 
+        visit == 1 & 
+        test == "CPM" &
+        trial == 1 &
+        site == "lKnee",
+      40, # see notes
+      force
+    )
   ) %>%
+  
   # stopped data editing after ss 49, decided to visualize data for issues
   mutate(force = ifelse(force == 0, NA, force)) # force cannot be equal to zero
   

@@ -102,27 +102,8 @@ rm(lvl1_aud_mod, lvl1_aud_est, aud_pca_data) # removes this section's objects
 #     #
 #######
 
-# The PPT data from redcap need to be cleaned for subject ID numbers, as the 
-# record numbers do not line up from arm 1 and arm 2
-
-# First step is to align record numbers with ss id's across arms 1 and 2
-arm1_temp <- 
-  redcap_ppt_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm2r)
-arm2_temp <- 
-  redcap_ppt_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm1r)
-
 # this should now have correct record numbers to ss ids
-redcap_ppt_data_ss <- 
-  # combines arm1 and arm2 while removing ss that are KIDS or EXCLUDE (see above)
-  left_join(ss_codes_ss, bind_rows(arm1_temp, arm2_temp), by = "ss")
+redcap_ppt_data_ss <- left_join(ss_codes_ss, redcap_ppt_data, by = "ss")
 
 # External Thresholds
 ext_N_pca_data_temp <- 
@@ -156,10 +137,9 @@ save(ext_N_pca_data, file = "../output/ext-N-pca-data.RData")     # RData
 write_csv(ext_N_pca_data, "../output/ext-N-pca-data.csv")         # CSV
 save(int_N_pca_data, file = "../output/int-N-pca-data.RData")     # RData
 write_csv(int_N_pca_data, "../output/int-N-pca-data.csv")         # CSV
+
 # removes this section's objects
 rm(
-  arm1_temp, 
-  arm2_temp, 
   ext_N_pca_data_temp,
   int_N_pca_data_temp,
   ext_N_pca_data, 
@@ -278,9 +258,7 @@ arm2_temp <-
   select(-ss.x, -ss.y, -arm1ref, -arm1r)
 
 # this should now have correct record numbers to ss ids
-bladder_data_ss <- 
-  # combines arm1 and arm2 while removing ss that are KIDS or EXCLUDE (see above)
-  left_join(ss_codes_ss, bind_rows(arm1_temp, arm2_temp), by = "ss")
+bladder_data_ss <- left_join(ss_codes_ss, bladder_data, by = "ss")
 
 # Extracting specific bladder task data measures
 bladder_pca_data <- 
@@ -305,7 +283,7 @@ bladder_pca_data <-
 
 save(bladder_pca_data, file = "../output/bladder-pca-data.RData") # RData
 write_csv(bladder_pca_data, "../output/bladder-pca-data.csv")     # CSV
-rm(arm1_temp, arm2_temp, bladder_pca_data) # removes this section's objects
+rm(bladder_pca_data) # removes this section's objects
 # bladder_data_ss not removed because it is used during McGill descriptors
 
 ###################
