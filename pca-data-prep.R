@@ -243,20 +243,6 @@ rm(conv_table, ts_mod, ts_est, ts_pca_data) # removes this section's objects
 #                   #
 #####################
 
-# First step is to align record numbers with ss id's across arms 1 and 2
-arm1_temp <- 
-  bladder_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_1") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm1r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm2r)
-arm2_temp <- 
-  bladder_data %>% 
-  filter(redcap_event_name %in% "assessment_visit_1_arm_2") %>%
-  left_join(., ss_codes, by = c("record_number" = "arm2r")) %>%
-  mutate(ss = ss.y) %>%
-  select(-ss.x, -ss.y, -arm1ref, -arm1r)
-
 # this should now have correct record numbers to ss ids
 bladder_data_ss <- left_join(ss_codes_ss, bladder_data, by = "ss")
 

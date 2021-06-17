@@ -31,8 +31,13 @@ aud_edata <-
   ) %>%
   filter(complete.cases(rating)) %>% # gets rid of missing values
   select(-name) %>% # gets rid of useless column
+  # DATA CORRECTION(S)
+  # Participant ID 77 had eprime file named 77, but 7 was entered as ID in EPRIME
+  # Therefore, this is corrected here:
+  mutate(ss = ifelse(ss == 7, 77, ss)) %>%
   arrange(ss, stim) # arranges for aesthetics
   
+
 # Saves out cleaned and processed data ----
 save(aud_edata, file = "../output/auditory-behav-data.RData")
 write_csv(aud_edata, file = "../output/auditory-behav-data.csv")

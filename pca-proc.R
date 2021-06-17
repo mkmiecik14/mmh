@@ -27,8 +27,8 @@ pca_data <-
 
 # PCA must have complete data from everyone
 # therefore, cases are deleted list-wise
-pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 170 discarded
-pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 183 kept
+pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 155 discarded
+pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 198 kept
 
 # Examining why participants were discarded
 discarded <- 
@@ -38,23 +38,25 @@ discarded <-
   summarise(n = n(), n_na = sum(is.na(value))) %>%
   arrange(n_na)
 
-try_to_sal <- discarded %>% filter(n_na == 2)
-test <- pca_data_discard %>% filter(ss %in% try_to_sal$ss)
-
-# potential fixes
-# ss 322 CPM first trial has a note of 40 Newtons
-
-# cold pain resid
-# ss53 and ss72
-
-# ppt rforehead
-# ss116
-
-# ss59  and ss61 -> ppt 5
-
-# ss88 vag_sharp
-
-# ss62 vaginal_prickling
-
-
-# ss316 and ss15 ts_slope
+try_to_sal <- discarded %>% filter(n_na == 8)
+# Subjects confirmed to have no data
+ss_nodata <- 
+  c(
+    15,
+    316,
+    167,
+    170,
+    176,
+    178,
+    188,
+    200,
+    202,
+    219,
+    314,
+    42,
+    53,
+    72,
+    95,
+    192
+    )
+test <- pca_data_discard %>% filter(ss %in% try_to_sal$ss, ss %nin% ss_nodata)
