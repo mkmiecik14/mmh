@@ -88,7 +88,11 @@ redcap_ppt_data <-
   mutate(
     pt4b_cpmwater = ifelse(ss == 4 & is.na(pt4b_cpmwater), 4, pt4b_cpmwater),
     pt3_5d_prickling = ifelse(ss == 62 & is.na(pt3_5d_prickling), 0, pt3_5d_prickling),
-    pt3_5a_sharp = ifelse(ss == 88 & is.na(pt3_5a_sharp), 3, pt3_5a_sharp)
+    pt3_5a_sharp = ifelse(ss == 88 & is.na(pt3_5a_sharp), 3, pt3_5a_sharp),
+    pt3_5a_sharp = ifelse(ss == 271 & is.na(pt3_5a_sharp), 2, pt3_5a_sharp),
+    pt3_5b_pressing = ifelse(ss == 271 & is.na(pt3_5b_pressing), 4, pt3_5b_pressing),
+    pt3_5c_dull = ifelse(ss == 271 & is.na(pt3_5c_dull), 2, pt3_5c_dull),
+    pt3_5d_prickling = ifelse(ss == 271 & is.na(pt3_5d_prickling), 3, pt3_5d_prickling)
     )
 
 # Saving out data

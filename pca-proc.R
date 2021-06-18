@@ -8,7 +8,11 @@ source("r-prep.R") # Prepares R workspace
 
 # Loads in data ----
 all_pca_data <- 
-  list.files(path = "../output/", pattern = "*-pca-data.csv", full.names = TRUE) %>%
+  list.files(
+    path = "../output/", 
+    pattern = "*-pca-data.csv", 
+    full.names = TRUE
+    ) %>%
   map_dfc(~ read_csv(file = .x))
 
 # Proof that all ss columns are identical
@@ -27,36 +31,7 @@ pca_data <-
 
 # PCA must have complete data from everyone
 # therefore, cases are deleted list-wise
-pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 155 discarded
-pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 198 kept
+pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 153 discarded
+pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 200 kept
 
-# Examining why participants were discarded
-discarded <- 
-  pca_data_discard %>% 
-  pivot_longer(cols = !ss) %>% 
-  group_by(ss) %>% 
-  summarise(n = n(), n_na = sum(is.na(value))) %>%
-  arrange(n_na)
 
-try_to_sal <- discarded %>% filter(n_na == 8)
-# Subjects confirmed to have no data
-ss_nodata <- 
-  c(
-    15,
-    316,
-    167,
-    170,
-    176,
-    178,
-    188,
-    200,
-    202,
-    219,
-    314,
-    42,
-    53,
-    72,
-    95,
-    192
-    )
-test <- pca_data_discard %>% filter(ss %in% try_to_sal$ss, ss %nin% ss_nodata)
