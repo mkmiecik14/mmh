@@ -213,8 +213,9 @@ ts_mod <-
   nest_by(ss) %>%
   mutate(
     mod = list(lm(value ~ 1 + scale(trial, scale = FALSE), data = data)), # multilevel models
-    ts_max = max(data$trial) # max trial
-  )
+    ts_max = max(data$trial)*-1 # max trial (multiplied by -1 as maxing out early is worse)
+    ) 
+
 
 # Estimates
 ts_est <- 
