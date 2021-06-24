@@ -11,11 +11,15 @@ library(tidyverse); library(readxl); library(Hmisc)
 library(TInPosition) # this loads all of ExPosition
 
 
+
 # Plotting tools ----
 # use geom_flat_violin()
 # see: https://neuroconscience.wordpress.com/2018/03/15/introducing-raincloud-plots/
 source("https://gist.githubusercontent.com/benmarwick/2a1bb0133ff568cbe28d/raw/fb53bd97121f7f9ce947837ef1a4c65a73bffb3f/geom_flat_violin.R")
+library(ggrepel)      # Plotting tool for ggplot2
 
 # Colors
 library(ghibli) # https://github.com/ewenme/ghibli
+library(RColorBrewer)
+rdgy_pal <- brewer.pal(11, "RdGy")
 
