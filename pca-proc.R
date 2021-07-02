@@ -42,27 +42,13 @@ set.seed(1218) # sets seed for reproducible results
 
 # PCA with bootstrapping and permutation testing using ExPosition
 iters <- 2000
-pca_res <- epPCA.inference.battery(DATA = pca_data_mat, graphs = FALSE, test.iters = iters)
+pca_res <- 
+  epPCA.inference.battery(
+    DATA = pca_data_mat, 
+    graphs = FALSE, 
+    test.iters = iters
+    )
 
-# To have increased flexibility, these analyses are also replicated by hand:
-
-# Bootstrapping
-boot_res <- 
-  1:iters %>%
-  # select rows at random with replacement
-  map(~pca_data_mat[sample(1:nrow(pca_data_mat), replace = TRUE),]) %>%
-  map(~scale(.)) %>% # mean centers and standardizes (sD = 1) all columns
-  map(~svd(.)) # SVD
-
-# Permutation testing
-perm_res <-
-  1:iters %>%
-  map(~apply(pca_data_mat, 2, sample)) %>% # scrambles columns
-  map(~scale(.)) %>% # mean centers and standardizes (sD = 1) all columns
-  map(~svd(.)) %>% # SVD
-  map("d") %>% # extracts singular values
-  map_dfr(~as.tibble(.x), .id = "iter") # assembles into long df
-  
 # Split-half re-sampling function
 shrs <- function(x){
   
@@ -71,9 +57,17 @@ shrs <- function(x){
   this_data <- x[sample(1:nrow(x)),]
   
   # retrieves rows for split
-  first_half <- 1:(nrow(this_data)/2) # rows for the first half
-  second_half <- max(first_half):nrow(this_data) # rows for the second half
+  # perhaps use split()?
+  
+  first_half  <- split(1:nrow(this_data), 1:2)$`1` # rows for the first half
+  second_half <- split(1:nrow(this_data), 1:2)$`2` # rows for the second half
   #! build in an even/odd checker to trim last row for odd numbered subjects
+  
+  # Debugging purposes
+  #print(first_half)
+  #print(second_half)
+  #print(length(first_half))
+  #print(length(second_half))
   
   # splits data in half and scales
   first_data  <- scale(this_data[first_half,]) 
@@ -94,7 +88,7 @@ shrs_res <- 1:iters %>% map_dfr(~shrs(pca_data_mat), .id = "iter")
 
 # Saves out PCA results
 save(
-  list = c("pca_res", "boot_res", "perm_res", "shrs_res", "iters"), 
+  list = c("pca_res", "shrs_res", "iters"), 
   file = "../output/mmh-res.RData"
   )
 
@@ -106,9 +100,7 @@ rm(
   pca_data_keep,
   pca_data_mat,
   pca_res,
-  boot_res,
-  perm_res,
   shrs_res,
-  iters,
+  iters
 )
 
