@@ -50,36 +50,37 @@ pca_res <-
     )
 
 # Split-half re-sampling function
+# Heavily inspired by https://github.com/derekbeaton/Workshops/tree/master/RTC/Apr2017/SplitHalf
 shrs <- function(x){
   
-  # randomizes the rows so that each participant has equal chance of
-  # entering split-halves
-  this_data <- x[sample(1:nrow(x)),]
+  # indices for first split half
+  sh_1_indices <- 
+    sort(
+      sample(
+        nrow(x), # number of participants
+        round(nrow(x)*.5), # rounds down for even split
+        replace = FALSE # sample without replacement
+        )
+      )
   
-  # retrieves rows for split
-  # perhaps use split()?
+  # indices for second split half
+  sh_2_indices <- setdiff(1:nrow(x), sh_1_indices)
   
-  first_half  <- split(1:nrow(this_data), 1:2)$`1` # rows for the first half
-  second_half <- split(1:nrow(this_data), 1:2)$`2` # rows for the second half
-  #! build in an even/odd checker to trim last row for odd numbered subjects
-  
-  # Debugging purposes
-  #print(first_half)
-  #print(second_half)
-  #print(length(first_half))
-  #print(length(second_half))
+  # Performs PCA
+  pca_sh1 <- epPCA(x[sh_1_indices,], scale = TRUE, center = TRUE, graphs = FALSE)
+  pca_sh2 <- epPCA(x[sh_2_indices,], scale = TRUE, center = TRUE, graphs = FALSE)
   
   # splits data in half and scales
-  first_data  <- scale(this_data[first_half,]) 
-  second_data <- scale(this_data[second_half,])
+  # first_data  <- scale(this_data[first_half,]) 
+  # second_data <- scale(this_data[second_half,])
   
   # performs PCA
-  first_data_svd  <- svd(first_data)
-  second_data_svd <- svd(second_data)
+  # first_data_svd  <- svd(first_data)
+  # second_data_svd <- svd(second_data)
   
   # Results from split half resampling (shrs)
-  shrs_res <- tibble(first = list(first_data_svd), second = list(second_data_svd))
-  
+  shrs_res <- tibble(first = list(pca_sh1), second = list(pca_sh2))
+
   return(shrs_res)
 }
 
