@@ -156,11 +156,6 @@ ggplot(fj, aes(.data[[comp1]], .data[[comp2]])) +
   pca_furnish
 
 
-
-
-
-
-
 # Combining factor score plots with coloring
 fj_long <- 
   fj %>% 
@@ -172,37 +167,46 @@ fj_long <-
 fj_data <- left_join(fj_long, boot_res_long, by = c("comp", "meas"))
 
 # FACTOR SCORE PLOTS COLORED BY BSR
-comps_to_plot <- c(2, 3) # only include 2
-data_to_plot <-
-  fj_data %>% 
-  filter(comp %in% comps_to_plot) %>%
-  pivot_wider(id_cols = meas, names_from = comp, values_from = c(fs, bsr, sig)) %>%
-  mutate(
-    sig = case_when(
-      .data[[paste0("sig_",comps_to_plot[1])]] == TRUE & .data[[paste0("sig_",comps_to_plot[2])]] == TRUE ~ "both",
-      .data[[paste0("sig_",comps_to_plot[1])]] == FALSE & .data[[paste0("sig_",comps_to_plot[2])]] == FALSE ~ "none",
-      .data[[paste0("sig_",comps_to_plot[1])]] == TRUE & .data[[paste0("sig_",comps_to_plot[2])]] == FALSE ~ as.character(comps_to_plot[1]),
-      .data[[paste0("sig_",comps_to_plot[1])]] == FALSE & .data[[paste0("sig_",comps_to_plot[2])]] == TRUE ~ as.character(comps_to_plot[2])
+fj_bsr_plot <- function(x = c(1, 2)){
+  
+  comps_to_plot <- x # only include 2
+  data_to_plot <-
+    fj_data %>% 
+    filter(comp %in% comps_to_plot) %>%
+    pivot_wider(id_cols = meas, names_from = comp, values_from = c(fs, bsr, sig)) %>%
+    mutate(
+      sig = case_when(
+        .data[[paste0("sig_",comps_to_plot[1])]] == TRUE & .data[[paste0("sig_",comps_to_plot[2])]] == TRUE ~ "both",
+        .data[[paste0("sig_",comps_to_plot[1])]] == FALSE & .data[[paste0("sig_",comps_to_plot[2])]] == FALSE ~ "none",
+        .data[[paste0("sig_",comps_to_plot[1])]] == TRUE & .data[[paste0("sig_",comps_to_plot[2])]] == FALSE ~ as.character(comps_to_plot[1]),
+        .data[[paste0("sig_",comps_to_plot[1])]] == FALSE & .data[[paste0("sig_",comps_to_plot[2])]] == TRUE ~ as.character(comps_to_plot[2])
+      )
     )
-  )
-# Plot
-ggplot(
-  data_to_plot, 
-  aes(
-    .data[[paste0("fs_", comps_to_plot[1])]], 
-    .data[[paste0("fs_", comps_to_plot[2])]],
-    color = sig
-    )
-  ) +
-  pca_furnish +
-  geom_vline(xintercept = 0, alpha = 1/3) +
-  geom_hline(yintercept = 0, alpha = 1/3) +
-  geom_point() +
-  coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
-  geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15) +
-  scale_color_manual(values = rev(ghibli_palettes$MononokeMedium)) + 
-  theme(legend.position = "bottom")
+  # Plot
+  this_plot <-
+    ggplot(
+    data_to_plot, 
+    aes(
+      .data[[paste0("fs_", comps_to_plot[1])]], 
+      .data[[paste0("fs_", comps_to_plot[2])]],
+      color = sig
+      )
+    ) +
+    pca_furnish +
+    geom_vline(xintercept = 0, alpha = 1/3) +
+    geom_hline(yintercept = 0, alpha = 1/3) +
+    geom_point() +
+    coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
+    geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15) +
+    scale_color_manual(values = rev(ghibli_palettes$MononokeMedium)) + 
+    theme(legend.position = "bottom")
+  
+  return(this_plot)
 
+}
+
+# Plot
+fj_bsr_plot(x = c(1, 2))
 
 ##############
 #            #
@@ -218,16 +222,50 @@ fi <-
   left_join(., ss_codes %>% select(ss, group), by = "ss") %>%
   select(ss, group, V1:V41)
 
-ggplot(fi, aes(V1, V2, color = group)) +
+# Caluclates barycenters
+fi_sum_long <- 
+  fi %>%
+  pivot_longer(cols = c(-ss, -group), names_to = "comp", values_to = "fs") %>%
+  group_by(group, comp) %>%
+  summarise(m = mean(fs), n = n()) %>%
+  ungroup() %>%
+  arrange(comp)
+
+# Converts to wide format for easier plotting
+fi_sum_wide <- 
+  fi_sum_long %>%
+  pivot_wider(id_cols = group, names_from = comp, values_from = m)
+
+# FI PLOT
+ggplot(fi_sum_wide, aes(V2, V3, color = group)) +
   pca_furnish +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
-  geom_point() +
+  geom_point(data = fi, alpha = 1/3, shape = 16) +
+  geom_point(shape = 17, size = 5) +
+  geom_text_repel(aes(label = group), segment.alpha = 0, show.legend = FALSE) +
   coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
-  #geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE) +
-  scale_color_manual(values = ghibli_palettes$PonyoMedium) +
-  theme(legend.position = "bottom")
+  scale_color_manual(values = wes_palettes$Darjeeling2) +
+  theme(legend.position = "none")
 
-# next step is to calculate the barycenters
+# Looking at factor plots side-by-side
+
+# FI PLOT
+fi_plot <- 
+  ggplot(fi_sum_wide, aes(V2, V3, color = group)) +
+  pca_furnish +
+  geom_vline(xintercept = 0, alpha = 1/3) +
+  geom_hline(yintercept = 0, alpha = 1/3) +
+  geom_point(data = fi, alpha = 1/3, shape = 16) +
+  geom_point(shape = 17, size = 5) +
+  geom_text_repel(aes(label = group), segment.alpha = 0, show.legend = FALSE) +
+  coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
+  scale_color_manual(values = wes_palettes$Darjeeling2) +
+  theme(legend.position = "none")
+
+fj_plot <- fj_bsr_plot(x = c(2, 3))
+
+fi_plot + fj_plot
+
   
 
