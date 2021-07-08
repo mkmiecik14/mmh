@@ -44,7 +44,7 @@ arm2_temp <-
   mutate(ss = ss.y) %>%
   select(-ss.x, -ss.y, -arm1ref, -arm1r)
 
-# Combines arm 1 and 2 after aligning ss num,bers with record numbers
+# Combines arm 1 and 2 after aligning ss numbers with record numbers
 avisit1_data_ss <- bind_rows(arm1_temp, arm2_temp)
 
 
@@ -99,6 +99,135 @@ redcap_ppt_data <-
 save(redcap_ppt_data, file = "../output/redcap-ppt-data.RData") # RData
 write_csv(redcap_ppt_data, file = "../output/redcap-ppt-data.csv") # CSV
 
+# Additional data that will not be included in the PCA, but is useful for
+# modeling and coloring
+
+# BSI
+redcap_bsi_data <- 
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    bsi1:bsi7
+  )
+
+# Saving out data
+save(redcap_bsi_data, file = "../output/redcap-bsi-data.RData") # RData
+write_csv(redcap_bsi_data, file = "../output/redcap-bsi-data.csv") # CSV
+
+
+# Female GUPI
+# Pain subscale: sum of 1a-d, 2a-d, 3, 4
+# Urinary Subscale: sum of 5 and 6
+# QOL impact: sum of 7, 8, 9
+# Total score = sum of all subscale scores
+redcap_gupi_data <- 
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    starts_with("gupi")
+  )
+
+# Saving out data
+save(redcap_gupi_data, file = "../output/redcap-gupi-data.RData") # RData
+write_csv(redcap_gupi_data, file = "../output/redcap-gupi-data.csv") # CSV
+
+# ICSI + ICPI
+redcap_ic_data <-
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    ic1a, ic1b, ic1c, ic1d, # ICSI
+    ic2a, ic2b, ic2c, ic2d  # ICPI
+  )
+
+# Saving out data
+save(redcap_ic_data, file = "../output/redcap-ic-data.RData") # RData
+write_csv(redcap_ic_data, file = "../output/redcap-ic-data.csv") # CSV
+
+# ROME
+redcap_rome_data <-
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    rome1:rome10
+  )
+
+# Saving out data
+save(redcap_rome_data, file = "../output/redcap-rome-data.RData") # RData
+write_csv(redcap_rome_data, file = "../output/redcap-rome-data.csv") # CSV
+
+# PROMIS - Global
+redcap_promis_global_data <-
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    global01, 
+    global02, 
+    global03, 
+    global04, 
+    global05, 
+    global06, 
+    global07, 
+    global08, 
+    global09, 
+    global10 
+  )
+
+# Saving out data
+save(redcap_promis_global_data, file = "../output/redcap-promis-global-data.RData") # RData
+write_csv(redcap_promis_global_data, file = "../output/redcap-promis-global-data.csv") # CSV
+
+# PROMIS - Pain Behavior
+redcap_promis_pb_data <-
+avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    painbe2,
+    painbe3,
+    painbe8,
+    painbe24,
+    painbe25,
+    painbe37,
+    painbe45
+  )
+
+# Saving out data
+save(redcap_promis_pb_data, file = "../output/redcap-promis-pb-data.RData") # RData
+write_csv(redcap_promis_pb_data, file = "../output/redcap-promis-pb-data.csv") # CSV
+
+# PROMIS - Pain interference
+redcap_promis_pi_data <- 
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    painin3,
+    painin8,
+    painin9,
+    painin10,
+    painin14,
+    painin26
+  )
+
+# Saving out data
+save(redcap_promis_pi_data, file = "../output/redcap-promis-pi-data.RData") # RData
+write_csv(redcap_promis_pi_data, file = "../output/redcap-promis-pi-data.csv") # CSV
+
+
+
 # Cleaning script objects ----
 rm(
   arm1_avisit1_data, 
@@ -109,5 +238,12 @@ rm(
   arm1_temp,
   arm2_temp,
   ss_codes,
-  avisit1_data_ss
+  avisit1_data_ss,
+  redcap_bsi_data,
+  redcap_gupi_data,
+  redcap_ic_data,
+  redcap_promis_global_data,
+  redcap_promis_pb_data,
+  redcap_promis_pi_data,
+  redcap_rome_data
   )

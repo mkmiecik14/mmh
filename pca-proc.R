@@ -49,6 +49,33 @@ pca_res <-
     test.iters = iters
     )
 
+# Barycentric Discriminant Analysis (BADA)
+load("../output/ss-codes.RData") # loads in subject ids and groups
+
+# Subject ids and groups for BADA
+ss_codes_trim <- 
+  ss_codes %>% 
+  filter(ss %in% rownames(pca_data_mat)) # filters out exclusions
+
+# checks to ensure the rownames are in the same order as pca_data_mat
+ss_codes_trim %>% 
+  mutate(
+    pca_ss = rownames(pca_data_mat),
+    pca_check = ifelse(ss == pca_ss, 1, 0)
+    ) %>%
+  summarise(sum = sum(pca_check)) # sum should == the  # of subjects if identical
+
+# Computes BADA
+bada_res <- 
+  tepBADA.inference.battery(
+    DATA = pca_data_mat,
+    scale = FALSE,
+    DESIGN = ss_codes_trim$group,
+    make_design_nominal = TRUE,
+    test.iters = iters,
+    graphs = FALSE
+    )
+
 # Split-half re-sampling function
 # Heavily inspired by https://github.com/derekbeaton/Workshops/tree/master/RTC/Apr2017/SplitHalf
 shrs <- function(x){
@@ -89,7 +116,7 @@ shrs_res <- 1:iters %>% map_dfr(~shrs(pca_data_mat), .id = "iter")
 
 # Saves out PCA results
 save(
-  list = c("pca_res", "shrs_res", "iters"), 
+  list = c("pca_res", "shrs_res", "bada_res", "iters"), 
   file = "../output/mmh-res.RData"
   )
 
@@ -102,6 +129,9 @@ rm(
   pca_data_mat,
   pca_res,
   shrs_res,
-  iters
+  iters,
+  bada_res,
+  ss_codes,
+  ss_codes_trim
 )
 
