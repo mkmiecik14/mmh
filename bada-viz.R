@@ -51,7 +51,7 @@ pca_furnish <-
 fj <- as_tibble(bada_res$Fixed.Data$TExPosition.Data$fj, rownames = "meas")
 
 # Component plots
-ggplot(fj, aes(V2, V3)) +
+ggplot(fj, aes(V1, V2)) +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
   geom_point() +
@@ -69,7 +69,7 @@ boot_res_long <-
   mutate(sig = abs(bsr) > critical_val) # calculates significance (think like t-test)
 
 # Bootstrapped Results
-this_comp <- 1
+this_comp <- 2
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
 ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +

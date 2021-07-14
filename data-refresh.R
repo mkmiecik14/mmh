@@ -11,6 +11,7 @@ source("avisit-1-prepro.R")
 source("ppt-prepro.R")
 source("auditory-eprime-prepro.R")
 source("visual-eprime-prepro.R")
+source("screenvisit-prepro.R")
 
 # PCA data prep
 source("pca-data-prep.R")

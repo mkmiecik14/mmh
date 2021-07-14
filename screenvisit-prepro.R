@@ -54,8 +54,8 @@ screen_data_ss <- bind_rows(arm1_temp, arm2_temp) %>% arrange(ss)
 
 # Menstrual pain (mh23 and mh23a)
 # I think only at screen
-
-screen_data_ss %>%
+redcap_menstrual_data <- 
+  screen_data_ss %>%
   select(
     record_number, 
     redcap_event_name, 
@@ -63,14 +63,34 @@ screen_data_ss %>%
     mh23, mh23a
     )
 
+save(redcap_menstrual_data, file = "../output/redcap-menstrual-data.RData") # RData
+write_csv(redcap_menstrual_data, file = "../output/redcap-menstrual-data.csv") # CSV
+
 # CMSI (is this only at screen?) - edit below
-avisit1_data_ss %>%
+redcap_cmsi_data <- 
+  screen_data_ss %>%
   select(
     record_number, 
     redcap_event_name, 
     ss,
-    starts_with("cmsi_gen1")
+    starts_with("cmsi_gen")
   )
+
+save(redcap_cmsi_data, file = "../output/redcap-cmsi-data.RData") # RData
+write_csv(redcap_cmsi_data, file = "../output/redcap-cmsi-data.csv") # CSV
+
+# Cleaning script objects ----
+rm(
+  arm1_screen_data,
+  arm2_screen_data,
+  screen_data,
+  screen_data_ss,
+  ss_codes,
+  arm1_temp,
+  arm2_temp,
+  redcap_menstrual_data,
+  redcap_cmsi_data
+)
 
 
 
