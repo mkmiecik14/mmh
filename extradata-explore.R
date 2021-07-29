@@ -19,3 +19,5 @@ load("../output/redcap-promis-global-data.RData") # PROMIS global
 load("../output/redcap-promis-pb-data.RData") # PROMIS pain behav (PB)
 load("../output/redcap-promis-pi-data.RData") # PROMIS pain interference (PI)
 
+# BSI
+redcap_bsi_data
