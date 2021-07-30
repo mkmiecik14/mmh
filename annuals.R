@@ -12,6 +12,7 @@ source("r-prep.R") # Prepare R workspace
 # Subject codes with shortened annual record ids
 crampp_codes <- read_excel(path = "../data/crampp-codes.xlsx", sheet = "usethis") 
 
+# Long annual data from ARM 1
 long_annual_data <- read_csv(file = "../data/long-annual-data.csv")
 
 # Year 2 annuals from CRAMPP long survey with ROME and ICSI
@@ -67,3 +68,31 @@ short_year_2_icsi <-
   summarise(year_2_icsi = sum(value), n = n())
 
 # Next step is to get the arm2 people
+long_annual_arm2 <- read_csv(file = "../data/long-annual-data-arm2.csv")
+
+long_annual_arm2_data <- 
+  long_annual_arm2 %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    timestamp = annual_questionnaire_combined060416_timestamp,
+    contains("rome"),
+    a99ic1a,
+    a99ic1b,
+    a99ic1c,
+    a99ic1d
+  ) %>%
+  filter(redcap_event_name %in% c("annual_1_arm_1", "annual_2_arm_1")) %>% # YEAR 1 AND 2
+  left_join(., crampp_codes, by = c("record_number" = "arm2r")) %>%
+  select(ss, record_number, redcap_event_name:notes3)
+
+# looking at ICSI
+test <- 
+  long_annual_arm2_data %>%
+  select(ss, redcap_event_name, contains("ic")) %>%
+  filter(complete.cases(.)) %>%
+  pivot_longer(c(-ss, -redcap_event_name)) %>%
+  group_by(ss, redcap_event_name) %>%
+  summarise(icsi = sum(value), n = n())
+  
+  
