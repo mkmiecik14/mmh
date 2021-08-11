@@ -279,4 +279,120 @@ ggplot(ic_ss, aes(name, value, color = name, fill = name)) +
 #      #
 ########
 
-redcap_rome_data
+# Diagnostic criteria for IBS:
+# Recurrent abdominal pain or discomfort** at least 3 days/month in last 
+# 3 months associated with two or more of criteria 1-3 below:
+# Pain or discomfort at least 2-3 days/month (question 1 > 2)
+# For women, does pain occur only during menstrual bleeding? (question 2=0 or 2)
+# * Criteria fulfilled for the last 3 months with symptom onset at least 
+# 6 months prior to diagnosis [ Yes. (question 3=1) ]
+
+# 1) 1. Improvement with defecation
+# Pain or discomfort gets better after BM at least sometimes (question 4>0)
+
+# 2) Onset associated with a change in frequency of stool
+# Onset of pain or discomfort associated with more stools at least sometimes 
+# (question 5>0)
+#! OR
+# Onset of pain or discomfort associated with fewer stools at least sometimes 
+# (question 6>0)
+
+# 3. Onset associated with a change in form (appearance) of stool
+# Onset of pain or discomfort associated with looser stools at least sometimes 
+# (question 7>0)
+#! OR
+# Onset of pain or discomfort associated wit harder stools at least sometimes 
+# (question 8>0)
+
+rome_init <- 
+  redcap_rome_data %>%
+  # gets rid of those that didn't answer the first question
+  # if they answered 0 on first question, then the rest was not administered
+  filter(complete.cases(rome1)) %>%
+  select(ss:rome10)
+
+# These participants do not have IBS
+rome_no_ibs <- 
+  rome_init %>% filter(rome1 <= 2) %>% mutate(ibs = 0, ibs_sub = NA)
+
+# These participants likely will have ibs, but are deeply characterized to make sure
+rome_ibs_qual <-
+  rome_init %>%
+  filter(rome1 > 2) %>%
+  mutate(
+    # checks period and longevity
+    stage1 = ifelse(rome2 == 0 & rome3 == 1, 1, 0),
+    # 1) improvement with defecation
+    stage2 = ifelse(rome4 > 0, 1, 0),
+    # 2) onset assoc with a change in freq of stool
+    stage3 = ifelse(rome5 > 0 | rome6 > 0, 1, 0),
+    # 3) onset assoc with a change in form (appearance) of stool
+    stage4 = ifelse(rome7 > 0 | rome8 > 0, 1, 0), 
+    # Extra subtyping
+    ibs_sub = case_when(
+      rome9 > 0 & rome10 == 0 ~ "IBS-C", # IBS-Constipation
+      rome9 == 0 & rome10 > 0 ~ "IBS-D", # IBS-Diarrhea
+      rome9 > 0 & rome10 > 0 ~ "IBS-M",  # IBS-Mixed
+      rome9 == 0 & rome10 == 0 ~ "IBS-U",# IBS-unsubtyped
+    )
+    ) %>%
+  # final determination of ibs status
+  mutate(
+    ibs = ifelse(stage1 == 1 & (stage2+stage3+stage4)> 1, 1, 0),
+    ibs_sub = ifelse(ibs == 0, NA, ibs_sub) # removes subtyping if ibs = 0
+    )
+
+# Rome data subject-wise
+rome_ss <- 
+  bind_rows(
+    select(rome_no_ibs, ss, rome1:rome9, ibs, ibs_sub), 
+    select(rome_ibs_qual, ss, rome1:rome9, ibs, ibs_sub)
+    )
+
+# counts
+rome_ss %>% count(ibs) 
+rome_ss %>% count(ibs_sub)
+
+
+#################
+#               #
+# PROMIS global #
+#               #
+#################
+
+# Subscales discovered in Hays et al., 2009:
+
+# physical health (gph) - average the following
+# global03 (physical health)
+# global06 (physical function)
+# global07 (pain)
+# global08 (fatigue)
+
+# mental health (gmh) - average the following
+# global02 (quality of life)
+# global04 (mental health)
+# global05 (satisfaction with discretionary social activities)
+# global10 (emotional problems)
+
+# This was done to compute subscales and to keep in all subjects that did not
+# have complete data, as each measure may be able to stand by itself
+promis_global_complete <-
+  redcap_promis_global_data %>%
+  filter(complete.cases(.)) %>%
+  rowwise() %>%
+  mutate(
+    gph = mean(global03, global06, global07, global08, na.rm = FALSE),
+    gmh = mean(global02, global04, global05, global10, na.rm = FALSE)
+    )
+
+# Subject-wise (will have missing data)
+promis_global_ss <-
+  redcap_promis_global_data %>%
+  left_join(., promis_global_complete %>% select(ss, gph, gmh), by = "ss") %>%
+  select(ss:gmh) %>%
+  filter(complete.cases(ss)) 
+
+# Next step is to visualize these to explore.
+
+
+
