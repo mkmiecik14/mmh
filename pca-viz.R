@@ -140,10 +140,10 @@ fj_colors <-
   select(meas, comp1, comp2) %>%
   mutate(
     sig = case_when(
-     .data[[comp1]] == TRUE & .data[[comp2]] == TRUE ~ "both",
+     .data[[comp1]] == TRUE  & .data[[comp2]] == TRUE  ~ "both",
      .data[[comp1]] == FALSE & .data[[comp2]] == FALSE ~ "none",
-     .data[[comp1]] == TRUE & .data[[comp2]] == FALSE ~ comp1,
-     .data[[comp1]] == FALSE & .data[[comp2]] == TRUE ~ comp2
+     .data[[comp1]] == TRUE  & .data[[comp2]] == FALSE ~ comp1,
+     .data[[comp1]] == FALSE & .data[[comp2]] == TRUE  ~ comp2
     )
   )
   
@@ -252,7 +252,7 @@ ggplot(fi_sum_wide, aes(V2, V3, color = group)) +
 
 # FI PLOT
 fi_plot <- 
-  ggplot(fi_sum_wide, aes(V2, V3, color = group)) +
+  ggplot(fi_sum_wide, aes(V1, V2, color = group)) +
   pca_furnish +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
@@ -263,9 +263,19 @@ fi_plot <-
   scale_color_manual(values = wes_palettes$Darjeeling2) +
   theme(legend.position = "none")
 
-fj_plot <- fj_bsr_plot(x = c(2, 3))
+fj_plot <- fj_bsr_plot(x = c(1, 2))
 
 fi_plot + fj_plot
 
-  
+###############################
+#                             #
+# Coloring by external scores #
+#                             #
+###############################
+
+load("../output/extra-pca-data.RData") # loads extra PCA data
+
+extra_data_match <- extra_pca_data %>% filter(ss %in% fi$ss)
+
+# evertyhing is continuous meas/can be z scored except for ibs and ibs_sub
 
