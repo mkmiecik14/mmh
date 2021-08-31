@@ -97,13 +97,21 @@ pca_furnish <-
 fj <- as_tibble(pca_res$Fixed.Data$ExPosition.Data$fj, rownames = "meas")
 
 # Component plots
-ggplot(fj, aes(V2, V3)) +
+ggplot(fj, aes(V1, V2)) +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
   geom_point() +
   coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
-  geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE) +
+  geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15, size = .1) +
   pca_furnish
+
+# Uncomment when saving out figure
+# ggsave(
+#   filename = "fs-plot-v2.svg",
+#   path = "../output/",
+#   width = 6.5, height = 4, units = "in"
+# )
+
 
 # Computing bootstrapping results
 critical_val <- 2 # treat like a z score 
@@ -115,7 +123,7 @@ boot_res_long <-
   mutate(sig = abs(bsr) > critical_val) # calculates significance (think like t-test)
 
 # Bootstrapped Results
-this_comp <- 3
+this_comp <- 1
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
 ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
