@@ -13,7 +13,7 @@ all_pca_data <-
     pattern = "*-pca-data.csv", 
     full.names = TRUE
     ) %>%
-  map_dfc(~ read_csv(file = .x))
+  map_dfc(~ read_csv(file = .x)) # map_dfc(~ read_csv(file = .x))
 
 # Proof that all ss columns are identical
 # https://stackoverflow.com/questions/31955316/r-how-to-check-if-all-columns-in-a-data-frame-are-the-same
@@ -76,6 +76,29 @@ bada_res <-
     graphs = FALSE
     )
 
+# computes another BADA without bladder data
+bladder_cols <- 
+  c(
+    "bs_pain", "fs_urg", "fs_pain", "fu_urg", "fu_pain", "mt_urg", "mt_pain",
+    "bladder_sharp", "bladder_pressing", "bladder_dull", "bladder_prickling"
+  )
+pca_data_nobladder <- pca_data_keep %>% select(-bladder_cols) # removes bladder cols
+
+# Converts PCA data to matrix
+pca_data_mat_nobladder <- as.matrix(select(pca_data_nobladder, -ss)) # removes ss id
+rownames(pca_data_mat_nobladder) <- pca_data_nobladder$ss # adds rownames of ss id
+
+# BADA procedure
+bada_res_2 <- 
+  tepBADA.inference.battery(
+  DATA = pca_data_mat_nobladder,
+  scale = FALSE,
+  DESIGN = ss_codes_trim$group,
+  make_design_nominal = TRUE,
+  test.iters = iters,
+  graphs = FALSE
+)
+
 # Split-half re-sampling function
 # Heavily inspired by https://github.com/derekbeaton/Workshops/tree/master/RTC/Apr2017/SplitHalf
 shrs <- function(x){
@@ -116,7 +139,7 @@ shrs_res <- 1:iters %>% map_dfr(~shrs(pca_data_mat), .id = "iter")
 
 # Saves out PCA results
 save(
-  list = c("pca_res", "shrs_res", "bada_res", "iters"), 
+  list = c("pca_res", "shrs_res", "bada_res", "bada_res_2", "iters"), 
   file = "../output/mmh-res.RData"
   )
 
@@ -132,6 +155,10 @@ rm(
   iters,
   bada_res,
   ss_codes,
-  ss_codes_trim
+  ss_codes_trim,
+  bada_res_2,
+  pca_data_mat_nobladder,
+  pca_data_nobladder,
+  bladder_cols
 )
 

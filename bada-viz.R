@@ -7,6 +7,9 @@
 source("r-prep.R")              # Prepares R workspace
 load("../output/mmh-res.RData") # Loads results
 
+# Switch if you want to view bada_res_2
+this_bada_res <- bada_res_2 # bada_res_2
+
 #########
 #       #
 # SCREE #
@@ -14,12 +17,12 @@ load("../output/mmh-res.RData") # Loads results
 #########
 
 scree_data <- 
-  tibble(obs_eigs = bada_res$Fixed.Data$TExPosition.Data$eigs) %>%
+  tibble(obs_eigs = this_bada_res$Fixed.Data$TExPosition.Data$eigs) %>%
   mutate(
     obs_sv = sqrt(obs_eigs), # observed singular values 
-    perc = bada_res$Fixed.Data$TExPosition.Data$t, # percentage var explained
+    perc = this_bada_res$Fixed.Data$TExPosition.Data$t, # percentage var explained
     comp = 1:n(),
-    p = bada_res$Inference.Data$components$p.vals,
+    p = this_bada_res$Inference.Data$components$p.vals,
     sig = ifelse(p < .05, "sig", "ns")
   )
 
@@ -48,28 +51,28 @@ pca_furnish <-
   )
 
 # Columns (i.e., measures)
-fj <- as_tibble(bada_res$Fixed.Data$TExPosition.Data$fj, rownames = "meas")
+fj <- as_tibble(this_bada_res$Fixed.Data$TExPosition.Data$fj, rownames = "meas")
 
 # Component plots
 ggplot(fj, aes(V1, V2)) +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
   geom_point() +
-  coord_cartesian(xlim = c(-.25, .25), ylim = c(-.25, .25)) +
+  #coord_cartesian(xlim = c(-.1, .1), ylim = c(-.1, .1)) +
   geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE) +
   pca_furnish
 
 # Computing bootstrapping results
 critical_val <- 2 # treat like a z score 
 boot_res_long <- 
-  as_tibble(bada_res$Inference.Data$boot.data$fj.boot.data$tests$boot.ratios, rownames = "meas") %>%
+  as_tibble(this_bada_res$Inference.Data$boot.data$fj.boot.data$tests$boot.ratios, rownames = "meas") %>%
   pivot_longer(-meas, values_to = "bsr", names_to = "comp") %>%
   mutate(comp = as.numeric(gsub("V", "", comp))) %>%
   arrange(comp) %>%
   mutate(sig = abs(bsr) > critical_val) # calculates significance (think like t-test)
 
 # Bootstrapped Results
-this_comp <- 2
+this_comp <- 1 # component to plot
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
 ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
@@ -83,7 +86,7 @@ ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
 
 # Attempting to draw 95% confidence ellipsis around groups
 fi_boots <- 
-  array_tree(bada_res$Inference.Data$boot.data$fi.boot.data$boots, margin = 3) %>%
+  array_tree(this_bada_res$Inference.Data$boot.data$fi.boot.data$boots, margin = 3) %>%
   map_dfr(~as_tibble(.x, rownames = "group"), .id = "iter")
 
 ggplot(fi_boots, aes(V1, V2, color = group, fill = group)) +

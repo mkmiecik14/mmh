@@ -566,5 +566,5 @@ extra_pca_data <-
   left_join(., promis_pb_pi_ss_ready, by = "ss")
 
 # saves out
-save(extra_pca_data, file = "../output/extra-pca-data.RData") # RData
-write_csv(extra_pca_data, "../output/extra-pca-data.csv")     # CSV
+save(extra_pca_data, file = "../output/extra-data.RData") # RData
+write_csv(extra_pca_data, "../output/extra-data.csv")     # CSV
