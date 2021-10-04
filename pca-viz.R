@@ -281,9 +281,48 @@ fi_plot + fj_plot
 #                             #
 ###############################
 
-load("../output/extra-pca-data.RData") # loads extra PCA data
+load("../output/extra-data.RData") # loads extra PCA data
+extra_data_match <- extra_pca_data %>% filter(ss %in% fi$ss) # includes only pca ss
 
-extra_data_match <- extra_pca_data %>% filter(ss %in% fi$ss)
 
-# evertyhing is continuous meas/can be z scored except for ibs and ibs_sub
+# everything is continuous meas/can be z scored except for ibs and ibs_sub
+# z-score procedure:
+extra_data_match_cont <- 
+  extra_data_match %>%
+  select(-ibs, -ibs_sub) # filters out categorical ibs and ibs_sub
+  
+extra_data_match_cont_scaled <- 
+  as_tibble(scale(test2 %>% select(-ss), center = TRUE, scale = TRUE)) %>%
+  mutate(ss = extra_data_match_cont$ss) %>% # adds back ss number
+  select(ss, bsi:promis_pi) # reorders cols
+
+apply(extra_data_match_cont_scaled, 2, min)
+
+# proof that these are z-scores
+apply(extra_data_match_cont_scaled, 2, function(x){mean(x, na.rm = TRUE)}) # should be 0
+apply(extra_data_match_cont_scaled, 2, function(x){sd(x, na.rm = TRUE)}) # should be 1
+
+# FI PLOT with colors
+fi_extra <- left_join(fi, extra_data_match_cont_scaled, by = "ss") # adds z scores
+
+ggplot(fi_extra, aes(V1, V2, color = gupi_gupi_total)) +
+  pca_furnish +
+  geom_vline(xintercept = 0, alpha = 1/3) +
+  geom_hline(yintercept = 0, alpha = 1/3) +
+  geom_point(shape = 19, size = 2) +
+  coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
+  scale_color_gradientn(
+    colours = brewer.pal(n = 11, "BrBG"),
+    limits = c(-3, 3),
+    breaks = c(-3, 0, 3), labels = c(-3, 0, 3),
+    guide = "colourbar",
+    name = "Z-Score"
+  ) 
+
+# take a look at correlations?
+
+
+
+
+
 

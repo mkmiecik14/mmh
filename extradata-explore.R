@@ -4,6 +4,7 @@
 
 # Purpose: This script explores data that was not included in the initial PCA
 # analyses, but is interesting to see how the PCA results predict these measures
+# ALSO, saves out these data at the bottom of this script
 
 source("r-prep.R") # Prepare R workspace
 
