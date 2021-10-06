@@ -97,12 +97,12 @@ pca_furnish <-
 fj <- as_tibble(pca_res$Fixed.Data$ExPosition.Data$fj, rownames = "meas")
 
 # Component plots
-ggplot(fj, aes(V1, V2)) +
+ggplot(fj, aes(V2, V3)) +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
   geom_point() +
   coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
-  geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15, size = .1) +
+  geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15) +
   pca_furnish
 
 # Uncomment when saving out figure
@@ -123,7 +123,7 @@ boot_res_long <-
   mutate(sig = abs(bsr) > critical_val) # calculates significance (think like t-test)
 
 # Bootstrapped Results
-this_comp <- 1
+this_comp <- 3
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
 ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
@@ -292,7 +292,7 @@ extra_data_match_cont <-
   select(-ibs, -ibs_sub) # filters out categorical ibs and ibs_sub
   
 extra_data_match_cont_scaled <- 
-  as_tibble(scale(test2 %>% select(-ss), center = TRUE, scale = TRUE)) %>%
+  as_tibble(scale(extra_data_match_cont %>% select(-ss), center = TRUE, scale = TRUE)) %>%
   mutate(ss = extra_data_match_cont$ss) %>% # adds back ss number
   select(ss, bsi:promis_pi) # reorders cols
 
@@ -305,7 +305,7 @@ apply(extra_data_match_cont_scaled, 2, function(x){sd(x, na.rm = TRUE)}) # shoul
 # FI PLOT with colors
 fi_extra <- left_join(fi, extra_data_match_cont_scaled, by = "ss") # adds z scores
 
-ggplot(fi_extra, aes(V1, V2, color = gupi_gupi_total)) +
+ggplot(fi_extra, aes(V1, V2, color = cmsi_3mos_lastyear)) +
   pca_furnish +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +

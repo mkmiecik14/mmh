@@ -109,7 +109,7 @@ redcap_bsi_data <-
     record_number, 
     redcap_event_name, 
     ss,
-    bsi1:bsi7
+    bsi1:bsi7 # remove number 7 only go to 6
   )
 
 # Saving out data
