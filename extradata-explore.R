@@ -19,6 +19,8 @@ load("../output/redcap-rome-data.RData")          # ROME
 load("../output/redcap-promis-global-data.RData") # PROMIS global
 load("../output/redcap-promis-pb-data.RData")     # PROMIS pain behav (PB)
 load("../output/redcap-promis-pi-data.RData")     # PROMIS pain interference (PI)
+load("../output/redcap-promis-anxiety-data.RData")# PROMIS anxiety
+load("../output/redcap-promis-depression-data.RData") # PROMIS depression
 
 #######
 #     #
@@ -30,7 +32,7 @@ load("../output/redcap-promis-pi-data.RData")     # PROMIS pain interference (PI
 bsi_ss <- 
   redcap_bsi_data %>%
   filter(complete.cases(.)) %>%
-  select(ss:bsi7) %>%
+  select(ss:bsi6) %>% # excludes bsi7 because this a question kevin invented
   pivot_longer(-ss) %>%
   group_by(ss) %>%
   summarise(bsi = sum(value), n = n()) %>%
@@ -512,6 +514,73 @@ promis_pb_pi_ss %>%
   labs("PROMIS Scales", y = "Summed Rating", caption = "95% CI error bars.") +
   theme_classic()
 
+
+###############################
+#                             #
+# PROMIS Anxiety & Depression #
+#                             #
+###############################
+
+# Anxiety subject-wise
+promis_anxiety_ss <-
+  redcap_promis_anxiety_data %>%
+  filter(complete.cases(.)) %>%
+  mutate(promis_anxiety = (edanx01+edanx05+edanx30+edanx40+edanx46+edanx53+edanx54)) %>%
+  select(ss, promis_anxiety)
+
+# Depression subject-wise
+promis_depression_ss <-
+  redcap_promis_depression_data %>%
+  filter(complete.cases(.)) %>%
+  mutate(promis_depression = (eddep04+eddep05+eddep06+eddep17+eddep22+eddep29+eddep36+eddep41)) %>%
+  select(ss, promis_depression)
+
+# Combines both
+promis_anxiety_depression_ss <- 
+  inner_join(promis_anxiety_ss, promis_depression_ss, by = "ss")
+
+# Summary
+promis_anxiety_depression_sum <-
+  promis_anxiety_depression_ss %>%
+  pivot_longer(-ss) %>%
+  group_by(name) %>%
+  summarise(
+    m = mean(value),
+    sd = sd(value),
+    n = n(),
+    sem = sd/sqrt(n),
+    ll = quantile(value, .025),
+    ul = quantile(value, .975)
+  ) %>%
+  ungroup()
+
+# PLOT
+promis_anxiety_depression_ss %>% 
+  pivot_longer(-ss) %>%
+  ggplot(., aes(name, value)) +
+  geom_point(position = pj, alpha = 1/3) +
+  geom_flat_violin(
+    position = position_nudge(x = .2, y = 0), 
+    fill = "black",
+    alpha = 1/3
+  ) +
+  geom_point(
+    data = promis_anxiety_depression_sum, 
+    aes(y=m), 
+    position = position_nudge(x = -.3, y = 0),
+    color = rdgy_pal[9]
+  ) +
+  geom_errorbar(
+    data = promis_anxiety_depression_sum,
+    aes(y = m, ymin=ll, ymax = ul), 
+    width = .2,
+    position = position_nudge(x = -.3, y = 0),
+    color = rdgy_pal[9]
+  ) +
+  labs("PROMIS Scales", y = "Summed Rating", caption = "95% CI error bars.") +
+  theme_classic()
+
+
 #############################################################################
 #                                                                           #
 # Putting all these measures together for PCA visualization and/or modeling #
@@ -553,6 +622,9 @@ promis_global_ss_ready <- promis_global_ss
 # PROMIS pain behav (PB) + PROMIS pain interference (PI)
 promis_pb_pi_ss_ready <- promis_pb_pi_ss
 
+# PROMIS anxiety + PROMIS depression
+promis_anxiety_depression_ss_ready <- promis_anxiety_depression_ss 
+
 # Combining all measures here
 extra_pca_data <-
   ss_codes %>%
@@ -564,7 +636,8 @@ extra_pca_data <-
   left_join(., ic_ss_ready, by = "ss") %>%
   left_join(., rome_ss_ready, by = "ss") %>%
   left_join(., promis_global_ss_ready, by = "ss") %>%
-  left_join(., promis_pb_pi_ss_ready, by = "ss")
+  left_join(., promis_pb_pi_ss_ready, by = "ss") %>%
+  left_join(., promis_anxiety_depression_ss_ready, by = "ss")
 
 # saves out
 save(extra_pca_data, file = "../output/extra-data.RData") # RData

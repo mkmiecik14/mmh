@@ -226,6 +226,47 @@ redcap_promis_pi_data <-
 save(redcap_promis_pi_data, file = "../output/redcap-promis-pi-data.RData") # RData
 write_csv(redcap_promis_pi_data, file = "../output/redcap-promis-pi-data.csv") # CSV
 
+# PROMIS - Anxiety
+redcap_promis_anxiety_data <- 
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    edanx01,
+    edanx05,
+    edanx30,
+    edanx40,
+    edanx46,
+    edanx53,
+    edanx54
+  )
+
+# Saving out data
+save(redcap_promis_anxiety_data, file = "../output/redcap-promis-anxiety-data.RData") # RData
+write_csv(redcap_promis_anxiety_data, file = "../output/redcap-promis-anxiety-data.csv") # CSV
+
+
+# PROMIS - Depression
+redcap_promis_depression_data <- 
+  avisit1_data_ss %>%
+  select(
+    record_number, 
+    redcap_event_name, 
+    ss,
+    eddep04,
+    eddep05,
+    eddep06,
+    eddep17,
+    eddep22,
+    eddep29,
+    eddep36,
+    eddep41
+  )
+
+# Saving out data
+save(redcap_promis_depression_data, file = "../output/redcap-promis-depression-data.RData") # RData
+write_csv(redcap_promis_depression_data, file = "../output/redcap-promis-depression-data.csv") # CSV
 
 
 # Cleaning script objects ----
@@ -245,5 +286,7 @@ rm(
   redcap_promis_global_data,
   redcap_promis_pb_data,
   redcap_promis_pi_data,
-  redcap_rome_data
+  redcap_rome_data,
+  redcap_promis_depression_data,
+  redcap_promis_anxiety_data
   )

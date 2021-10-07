@@ -282,21 +282,25 @@ fi_plot + fj_plot
 ###############################
 
 load("../output/extra-data.RData") # loads extra PCA data
-extra_data_match <- extra_pca_data %>% filter(ss %in% fi$ss) # includes only pca ss
+
+# Trimming data
+extra_data_match <- 
+  extra_pca_data %>% filter(ss %in% fi$ss) # includes only pca ss
 
 
+# Z-score procedure
 # everything is continuous meas/can be z scored except for ibs and ibs_sub
-# z-score procedure:
 extra_data_match_cont <- 
   extra_data_match %>%
   select(-ibs, -ibs_sub) # filters out categorical ibs and ibs_sub
   
+# Z scoring and organization here
 extra_data_match_cont_scaled <- 
-  as_tibble(scale(extra_data_match_cont %>% select(-ss), center = TRUE, scale = TRUE)) %>%
+  as_tibble(
+    scale(extra_data_match_cont %>% select(-ss), center = TRUE, scale = TRUE) # z-score calc
+    ) %>%
   mutate(ss = extra_data_match_cont$ss) %>% # adds back ss number
-  select(ss, bsi:promis_pi) # reorders cols
-
-apply(extra_data_match_cont_scaled, 2, min)
+  select(ss, bsi:promis_depression) # reorders cols
 
 # proof that these are z-scores
 apply(extra_data_match_cont_scaled, 2, function(x){mean(x, na.rm = TRUE)}) # should be 0
@@ -305,7 +309,7 @@ apply(extra_data_match_cont_scaled, 2, function(x){sd(x, na.rm = TRUE)}) # shoul
 # FI PLOT with colors
 fi_extra <- left_join(fi, extra_data_match_cont_scaled, by = "ss") # adds z scores
 
-ggplot(fi_extra, aes(V1, V2, color = cmsi_3mos_lastyear)) +
+ggplot(fi_extra, aes(V1, V2, color = promis_depression)) +
   pca_furnish +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
@@ -319,9 +323,51 @@ ggplot(fi_extra, aes(V1, V2, color = cmsi_3mos_lastyear)) +
     name = "Z-Score"
   ) 
 
-# take a look at correlations?
+# plot here with the ROME groups
 
+# Correlations between extra measures and PCA components
+cor_data <- 
+  fi_extra %>%
+  select(
+    ss,
+    V1:V3, # PCs 1-3
+    cmsi_3mos_lastyear, cmsi_3mos_lifetime, # cmsi
+    mh23, # menstrual pain
+    gupi_pain_subscale:gupi_gupi_total, # gupi
+    icsi, icpi, # ic
+    gph, # global physical health
+    gmh, # global mental health
+    promis_pb, # promis pain behavior
+    promis_pi,# promis pain interference
+    promis_anxiety, # promis anxiety
+    promis_depression # promis depression
+    )
 
+cor_res <-
+  psych::corr.test(
+    cor_data %>% select(-ss),
+    use = "pairwise",
+    method = "pearson", 
+    adjust = "none",
+    ci = TRUE
+  )
+# round(cor_res$ci,3)
+
+# Cleans up the confidence interval results
+cor_ci <- 
+  as_tibble(cor_res$ci, rownames = "vars") %>%
+  separate(vars, into = c("var1", "var2"), sep = "-") %>%
+  mutate(sig = ifelse(p < .05, "sig", "nsig"))
+
+ggplot(
+  cor_ci %>% filter(var1 %in% c("V1", "V2", "V3")), 
+  aes(r, var2, color = sig)
+  ) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = .2) +
+  coord_cartesian(xlim = c(-1, 1)) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  facet_wrap(~var1)
 
 
 
