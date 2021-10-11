@@ -141,8 +141,8 @@ fj_boot_sig <-
   pivot_wider(id_cols = meas, names_from = comp, values_from = sig, names_prefix = "V")
 
 # Component plots
-comp1 <- "V1"
-comp2 <- "V2"
+comp1 <- "V2"
+comp2 <- "V3"
 fj_colors <-
   fj_boot_sig %>% 
   select(meas, comp1, comp2) %>%
@@ -214,7 +214,7 @@ fj_bsr_plot <- function(x = c(1, 2)){
 }
 
 # Plot
-fj_bsr_plot(x = c(1, 2))
+fj_bsr_plot(x = c(2, 3))
 
 ##############
 #            #
@@ -349,7 +349,8 @@ cor_res <-
     use = "pairwise",
     method = "pearson", 
     adjust = "none",
-    ci = TRUE
+    ci = TRUE,
+    minlength = 100 # extends the abrreviations
   )
 # round(cor_res$ci,3)
 
@@ -359,15 +360,21 @@ cor_ci <-
   separate(vars, into = c("var1", "var2"), sep = "-") %>%
   mutate(sig = ifelse(p < .05, "sig", "nsig"))
 
+# Correlations plots
 ggplot(
   cor_ci %>% filter(var1 %in% c("V1", "V2", "V3")), 
   aes(r, var2, color = sig)
   ) +
   geom_point() +
+  scale_color_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
   geom_errorbarh(aes(xmin = lower, xmax = upper), height = .2) +
   coord_cartesian(xlim = c(-1, 1)) +
   geom_vline(xintercept = 0, linetype = 2) +
-  facet_wrap(~var1)
+  scale_x_continuous(breaks = seq(-1, 1, .5), minor_breaks = NULL) + 
+  labs(x = "Correlation (r)", y = "Variable 2", caption = "95% CI error bars.") +
+  facet_wrap(~var1) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
 
 
