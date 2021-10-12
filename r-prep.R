@@ -11,7 +11,7 @@ library(tidyverse); library(readxl); library(Hmisc)
 library(TInPosition) # this loads all of ExPosition
 
 # For the API configuration
-library(RCurl); library(jsonlite);
+library(httr); library(jsonlite);
 
 
 
