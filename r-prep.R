@@ -27,6 +27,7 @@ library(ghibli) # https://github.com/ewenme/ghibli
 library(RColorBrewer)
 rdgy_pal <- brewer.pal(11, "RdGy")
 library(wesanderson)
+library(ggsci)
 
 
 

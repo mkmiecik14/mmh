@@ -153,6 +153,69 @@ ggplot(annual_icsi, aes(annual, icsi, group = ss)) +
   geom_point() +
   geom_line()
 
+# for crampp renewal
+groupwise_annual_icsi <- 
+  annual_icsi %>%
+  left_join(., select(crampp_codes, ss, group), by = "ss") %>%
+  group_by(annual, group) %>%
+  summarise(m = mean(icsi), sd = sd(icsi), n = n(), sem = sd/sqrt(n)) %>%
+  ungroup() %>%
+  filter(group %in% c("DYS", "DYSB", "HC"))
+print(groupwise_annual_icsi)
+#write_csv(groupwise_annual_icsi, "../output/crampp-renewal-icsi.csv")
+
+# subject-wise icsi
+annual_icsi_ss <- 
+  annual_icsi %>%
+  left_join(., select(crampp_codes, ss, group), by = "ss")
+
+
+# Figure for CRAMPP Renewal
+pj <- position_jitter(width = .1)
+ggplot(groupwise_annual_icsi, aes(annual, m, group = group, color = group)) +
+  geom_hline(yintercept = 7, linetype = 2, color = "lightgrey") +
+  geom_point(
+    data = annual_icsi_ss %>% filter(group %in% c("DYS", "DYSB", "HC")), 
+    aes(x = annual, y = icsi), 
+    shape = 1, position = pj, alpha = 1/3
+    ) +
+  geom_point() +
+  geom_errorbar(aes(ymin = m-sem, ymax = m+sem), width = .2) +
+  geom_line() +
+  theme_classic() +
+  #scale_color_manual(values = wes_palettes$Darjeeling2[c(2,3,5)]) +
+  scale_color_jco() +
+  labs(x = "Year", y = "Mean ICSI Score", caption = "SEM error bars.") +
+  theme(legend.position = "bottom")
+# ggsave(filename = "../output/crampp-renewal-icsi.svg")
+
+pd <- position_dodge(width = .1)
+ggplot(groupwise_annual_icsi, aes(annual, m, group = group, color = group)) +
+  geom_hline(yintercept = 7, linetype = 2, color = "lightgrey") +
+  # geom_point(
+  #   data = annual_icsi_ss %>% filter(group %in% c("DYS", "DYSB", "HC")), 
+  #   aes(x = annual, y = icsi), 
+  #   shape = 1, position = pj, alpha = 1/3
+  # ) +
+  geom_point(position = pd) +
+  geom_errorbar(aes(ymin = m-sem, ymax = m+sem), width = .2, position = pd) +
+  geom_line(position = pd) +
+  theme_classic() +
+  coord_cartesian(ylim = c(0, 10)) +
+  scale_y_continuous(breaks = seq(0, 10 ,2)) +
+  scale_color_jco() +
+  labs(x = "Year", y = "Mean ICSI Score") +
+  theme(legend.position = "none")
+ggsave(
+  filename = "../output/crampp-renewal-icsi-v2.svg", 
+  width = 2, 
+  height = 1.5, 
+  units = "in"
+  )
+
+  
+  
+
 # Now we have to determine subject IDs that have complete EEG and QST
 load("../output/mmh-res.RData")
 
