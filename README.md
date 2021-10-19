@@ -1,4 +1,5 @@
 # mmh
+
 Code for data processing and analysis of the Multimodal Hypersensitivity project.
 
 Full details of this project and data can be found on Open Science Framework: [link to appear here]
@@ -40,4 +41,9 @@ Principal component analysis and inferential testing was performed using the `pc
 
 # Stage 5
 
-Annual questionnaires are processed in `annuals.R`.
+Annual data for the ICSI (our CPP outcome measure) were pulled from Redcap using the API (`api-calls.R`) and preprocessed using `api-prepro.R`. As more participants complete their annual questionnaires, these data can be refreshed by running `api-calls.R`.
+
+
+# MISC
+
+Annual questionnaires are processed in `annuals.R` for a grant prep submission.
