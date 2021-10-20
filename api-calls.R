@@ -55,8 +55,9 @@ arm1_annuals <-
 # parses .$content
 arm1_annuals_parsed <- content(arm1_annuals, as = "parsed")
 
-# Trying to get time stamps of assessment visit (uses the icsi form)
-arm1_avisit1_icsi <- 
+# Trying to get time stamps of assessment visit
+# pulls all data bc why not
+arm1_avisit1_api <- 
   POST(
     url = api_url,
     body = list(
@@ -64,7 +65,7 @@ arm1_avisit1_icsi <-
       content = "record",
       format = "csv",
       type = "eav", # for longitudinal output
-      "forms[0]" = "ic_problem_and_symptoms_indices",
+      #"forms[0]" = "ic_problem_and_symptoms_indices",
       "events[0]" = "assessment_visit_1_arm_1",
       rawOrLabel = "raw",
       rawOrLabelHeaders = "raw",
@@ -75,7 +76,7 @@ arm1_avisit1_icsi <-
     )
   )
 # parses .$content
-arm1_avisit1_icsi_parsed <- content(arm1_avisit1_icsi, as = "parsed")
+arm1_avisit1_api_parsed <- content(arm1_avisit1_api, as = "parsed")
 
 #########################################
 #                                       #
@@ -103,8 +104,9 @@ arm2_annuals <-
 # parses .$content
 arm2_annuals_parsed <- content(arm2_annuals, as = "parsed")
 
-# Trying to get time stamps of assessment visit (uses the icsi form)
-arm2_avisit1_icsi <- 
+# Trying to get time stamps of assessment visit
+# pulls all avisit 1 data bc why not
+arm2_avisit1_api <- 
   POST(
     url = api_url,
     body = list(
@@ -112,7 +114,7 @@ arm2_avisit1_icsi <-
       content = "record",
       format = "csv",
       type = "eav", # for longitudinal output
-      "forms[0]" = "ic_problem_and_symptoms_indices",
+      #"forms[0]" = "ic_problem_and_symptoms_indices",
       "events[0]" = "assessment_visit_1_arm_1",
       rawOrLabel = "raw",
       rawOrLabelHeaders = "raw",
@@ -123,7 +125,7 @@ arm2_avisit1_icsi <-
     )
   )
 # parses .$content
-arm2_avisit1_icsi_parsed <- content(arm2_avisit1_icsi, as = "parsed")
+arm2_avisit1_api_parsed <- content(arm2_avisit1_api, as = "parsed")
 
 #######################################
 #                                     #
@@ -156,13 +158,13 @@ short_annuals_parsed <- content(short_annuals, as = "parsed")
 
 # ARM 1 ANNUAL DATA
 save(arm1_annuals_parsed, file = "../output/arm1_annuals_parsed.RData")
-# ARM 1 ASSESSMENT VISIT 1 ICSI DATA (mainly for time stamps)
-save(arm1_avisit1_icsi_parsed, file = "../output/arm1_avisit1_icsi_parsed.RData")
+# ARM 1 ASSESSMENT VISIT 1 DATA 
+save(arm1_avisit1_api_parsed, file = "../output/arm1_avisit1_api_parsed.RData")
 
 # ARM 2 ANNUAL DATA
 save(arm2_annuals_parsed, file = "../output/arm2_annuals_parsed.RData")
-# ARM 2 ASSESSMENT VISIT 1 ICSI DATA (mainly for time stamps)
-save(arm2_avisit1_icsi_parsed, file = "../output/arm2_avisit1_icsi_parsed.RData")
+# ARM 2 ASSESSMENT VISIT 1 DATA
+save(arm2_avisit1_api_parsed, file = "../output/arm2_avisit1_api_parsed.RData")
 
 # SHORTENED ANNUALS DATA
 save(short_annuals_parsed, file = "../output/short_annuals_parsed.RData")
@@ -172,12 +174,12 @@ save(short_annuals_parsed, file = "../output/short_annuals_parsed.RData")
 rm(
   arm1_annuals,
   arm1_annuals_parsed,
-  arm1_avisit1_icsi,
-  arm1_avisit1_icsi_parsed,
+  arm1_avisit1_api,
+  arm1_avisit1_api_parsed,
   arm2_annuals,
   arm2_annuals_parsed,
-  arm2_avisit1_icsi,
-  arm2_avisit1_icsi_parsed,
+  arm2_avisit1_api,
+  arm2_avisit1_api_parsed,
   short_annuals,
   short_annuals_parsed,
   api_url,
