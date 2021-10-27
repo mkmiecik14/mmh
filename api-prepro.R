@@ -72,8 +72,17 @@ arm1_annuals_wide <-
 # cleans up the annual data
 arm1_annuals_clean <- 
   arm1_annuals_wide %>% 
-  select(ss, year, timestamp, icsi) %>% 
+  select(ss, year, timestamp, icsi) %>%
+  # subject 196 was given avisit2 on year 1 and vice versa, so these are swapped
+  mutate(
+    year = ifelse(ss == 196 & year == 1, 22, year), # can't figure out a better way
+    year = ifelse(ss == 196 & year == 2, 1, year),
+    year = ifelse(ss == 196 & year == 22, 2, year),
+    # annual visit 3 for ss196 was accidentally completed and removed here:
+    ss = ifelse(ss == 196 & year == 3, NA, ss) 
+    ) %>%
   filter(complete.cases(ss))
+
 
 #################
 #               #
@@ -126,7 +135,9 @@ arm2_annuals_wide <-
 
 arm2_annuals_clean <- 
   arm2_annuals_wide %>%
-  select(ss, year, timestamp, icsi) %>% 
+  select(ss, year, timestamp, icsi) %>%
+  # ss 183 completed year 3 in shortened annual, so remove this entry:
+  mutate(ss = ifelse(ss == 183 & year == 3 & is.na(timestamp), NA, ss)) %>%
   filter(complete.cases(ss))
 
 #####################
@@ -185,16 +196,13 @@ short_annuals_clean <-
 #                   #
 #####################
 
-timestamp_cols <- 
-  arm1_avisit1_api_parsed %>% 
-  select(record, field_name, value) %>% 
-  pivot_wider(id_cols = record, names_from = field_name, values_from = value) %>%
-  select(record, contains("timestamp")) %>%
-  pivot_longer(-record, names_to = "meas", values_to = "values")
+# timestamp_cols <- 
+#   arm1_avisit1_api_parsed %>% 
+#   select(record, field_name, value) %>% 
+#   pivot_wider(id_cols = record, names_from = field_name, values_from = value) %>%
+#   select(record, contains("timestamp")) %>%
+#   pivot_longer(-record, names_to = "meas", values_to = "values")
   
-
-
-
 # Arm1 - long format
 arm1_avisit1_icsi_long <- 
   arm1_avisit1_api_parsed %>%
@@ -287,18 +295,85 @@ icsi_annual_data <-
   ) %>%
   arrange(ss, year)
 
-# trims for groups
-icsi_annual_data_trim <- 
-  icsi_annual_data %>%
-  left_join(., crampp_codes, by = "ss") %>%
-  filter(group %in% c("HC","PBS","DYSB","DYS","PAIN")) %>% # removes KID and EXCLUDE
-  select(ss:group)
-write_csv(icsi_annual_data_trim, file = "../output/icsi-annual-data-trim.csv")
+# Redcap stopped collecting timestamps at a certain point for assessment visit 1
+# therefore, these are brought in externally here
+avisit_1_dates <- 
+  read_excel(
+  path = "../data/crampp-av-dates.xlsx", 
+  sheet = "for-r", 
+  na = c("nc", "na", "nq", "no show", "Arm 3 Tracking Log")
+  ) %>%
+  # https://stackoverflow.com/questions/43230470/how-to-convert-excel-date-format-to-proper-date-in-r
+  mutate(
+    across(
+      .cols = c(screen_visit_date, timestamp, timestamp_edited),
+      .fns = ~as.Date(as.numeric(.x), origin = "1899-12-30") # Excel -> R dates
+      ),
+    year = 0 # helps with the join
+  )
+
+# corrects the missing annual visit 1 dates
+icsi_annual_data_fixed <- 
+  left_join(
+    icsi_annual_data, 
+    select(avisit_1_dates, ss, year, timestamp_edited),
+    by = c("ss", "year")
+    ) %>%
+  mutate(timestamp = if_else(is.na(timestamp), timestamp_edited, timestamp)) %>%
+  select(-timestamp_edited)
+
+
+# calculates days that passed from baseline
+icsi_annual_days_wide <-
+  icsi_annual_data_fixed %>%
+  pivot_wider(
+    id_cols = ss, 
+    names_from = year, 
+    names_prefix = "year_", 
+    values_from = c(timestamp),
+    values_fill = NA
+    ) %>%
+    select(ss, year_0, year_1, year_2, year_3, year_4, year_5) %>%
+  mutate(
+    across(
+      .cols = year_0:year_5,
+      .fns = ~as.numeric(.x-year_0),
+      .names = "{.col}_days"
+    )
+    )
+
+# gathers icsi timestamps in long format
+icsi_timestamps <-
+  icsi_annual_days_wide %>%
+  select(ss, year_0:year_5) %>%
+  pivot_longer(-ss, names_to = "year", values_to = "timestamp") %>%
+  mutate(year = as.numeric(gsub("year_", "", year)))
+
+# gathers icsi days from baseline in long format
+icsi_days <- 
+  icsi_annual_days_wide %>%
+  select(ss, year_0_days:year_5_days) %>%
+  pivot_longer(-ss, names_to = "year", values_to = "days_from_baseline") %>%
+  mutate(year = as.numeric(regmatches(year, regexpr("[[:digit:]]", year))))
+
+# combining everything
+icsi_all <- 
+  icsi_timestamps %>%
+  left_join(., icsi_days, by = c("ss", "year")) %>%
+  left_join(
+    ., 
+    select(icsi_annual_data_fixed, ss, year, icsi), 
+    by = c("ss", "year")
+    )
+
+# gets rid of icsi NAs
+icsi_complete <- icsi_all %>% filter(complete.cases(icsi))
+
+test <- icsi_complete %>% filter(is.na(days_from_baseline))
+#! try to find out what happened to these individuals with icsi scores but without timestamps
+
+
   
-  
 
 
-# Now trying to understand the missing data points
 
-
-  
