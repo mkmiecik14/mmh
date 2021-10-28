@@ -79,7 +79,9 @@ arm1_annuals_clean <-
     year = ifelse(ss == 196 & year == 2, 1, year),
     year = ifelse(ss == 196 & year == 22, 2, year),
     # annual visit 3 for ss196 was accidentally completed and removed here:
-    ss = ifelse(ss == 196 & year == 3, NA, ss) 
+    ss = ifelse(ss == 196 & year == 3, NA, ss),
+    # ss92 has a year 4 duplicate in year 1 (removed here)
+    ss = ifelse(ss == 92 & year == 1, NA, ss) 
     ) %>%
   filter(complete.cases(ss))
 
@@ -187,7 +189,13 @@ short_annuals_wide <-
 # cleans up short annual data
 short_annuals_clean <- 
   short_annuals_wide %>%
-  select(ss, year, timestamp, icsi) %>% 
+  select(ss, year, timestamp, icsi) %>%
+  # subject 60 put incorrect date for today's date when filling questionnaire
+  mutate(timestamp = if_else(
+    ss == 60 & year == 5, 
+    as.Date("08-10-2020", "%m-%d-%y"),
+    timestamp)
+    ) %>%
   filter(complete.cases(ss))
 
 #####################
@@ -367,13 +375,80 @@ icsi_all <-
     )
 
 # gets rid of icsi NAs
-icsi_complete <- icsi_all %>% filter(complete.cases(icsi))
+icsi_data_all <- icsi_all %>% filter(complete.cases(icsi))
 
-test <- icsi_complete %>% filter(is.na(days_from_baseline))
-#! try to find out what happened to these individuals with icsi scores but without timestamps
+# Not happy about this solution, but will have to do for now:
+# redcap did not properly collect timestamp, so these are manually added for
+# those with a redcap icsi score but without a timestamp
+still_missing <- icsi_data_all %>% filter(is.na(days_from_baseline))
 
+# Manually imports these 
+crampp_annual_dates <- 
+  read_excel(
+    "../data/crampp-annual-dates.xlsx", 
+    sheet = "for-r",
+    na = c("nq", "No")
+    )
+
+# joins data
+still_missing_info <- 
+  still_missing %>% left_join(., crampp_annual_dates, by = "ss") 
+
+# narrows down necessary features
+still_missing_info_long <- 
+  still_missing_info %>% 
+  select(ss, year_0:year_5) %>%
+  pivot_longer(-ss, names_to = "year", values_to = "timestamp") %>%
+  mutate(year = as.numeric(gsub("year_","",year)))
+
+# temporary df with baseline dates
+baseline_dates <- 
+  icsi_all %>% 
+  filter(year == 0) %>% 
+  select(ss, baseline = timestamp)
+
+# fixes days_since baseline with new dates
+still_missing_fixed <-
+  still_missing %>% 
+  left_join(., still_missing_info_long, by = c("ss", "year")) %>%
+  mutate(timestamp.y = as.Date(as.numeric(timestamp.y), origin = "1899-12-30")) %>%
+  select(ss, year, timestamp = timestamp.y, icsi) %>%
+  left_join(., baseline_dates, by = "ss") %>%
+  mutate(days_from_baseline = as.numeric(timestamp - baseline)) %>%
+  select(ss, year, timestamp, days_from_baseline, icsi)
+
+# THE COMPLETE ICSI DATA SET
+complete_icsi_data <- 
+  bind_rows(icsi_data_all, still_missing_fixed) %>%
+  # participant 50 gets chopped in the process, but that is OK because she
+  # disqualifies anyway
+  filter(complete.cases(days_from_baseline)) 
 
   
+##############################################################
+#                                                            #
+# SAVES OUT CLEANED AND PROCESSED ANNUAL ICSI QUESTIONNAIRES #
+#                                                            #
+##############################################################
 
+save(complete_icsi_data, file = "../output/complete-icsi-data.Rdata")     # RDATA
+write_csv(complete_icsi_data, file = "../output/complete-icsi-data.csv")  # CSV
 
+# script objects to remove
+rm_objs<-
+  paste(
+    "arm1_annuals",
+    "arm1_avisit1",
+    "arm2_annuals",
+    "arm2_avisit1",
+    "icsi_",
+    "short_annuals",
+    "avisit_1",
+    "crampp",
+    "rm_objs",
+    "still_missing",
+    "baseline_dates",
+    sep = "|"
+    )
 
+rm(list = ls(pattern = rm_objs)) # cleans up workspace objects
