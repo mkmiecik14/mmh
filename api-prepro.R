@@ -81,7 +81,11 @@ arm1_annuals_clean <-
     # annual visit 3 for ss196 was accidentally completed and removed here:
     ss = ifelse(ss == 196 & year == 3, NA, ss),
     # ss92 has a year 4 duplicate in year 1 (removed here)
-    ss = ifelse(ss == 92 & year == 1, NA, ss) 
+    ss = ifelse(ss == 92 & year == 1, NA, ss),
+    # ss162 year 1 and 2 should be year 2 and 3, respectively
+    year = ifelse(ss == 162, year+1, year),
+    # ss156 year 4 should be year 3
+    year = ifelse(ss == 156 & year == 4, 3, year)
     ) %>%
   filter(complete.cases(ss))
 
@@ -191,10 +195,14 @@ short_annuals_clean <-
   short_annuals_wide %>%
   select(ss, year, timestamp, icsi) %>%
   # subject 60 put incorrect date for today's date when filling questionnaire
-  mutate(timestamp = if_else(
-    ss == 60 & year == 5, 
-    as.Date("08-10-2020", "%m-%d-%y"),
-    timestamp)
+  mutate(
+    timestamp = if_else(
+      ss == 60 & year == 5, 
+      as.Date("08-10-2020", "%m-%d-%y"),
+      timestamp
+      ),
+    # ss109 seems to have completed two annuals within 30 days (year 4 is wrong)
+    ss = ifelse(ss == 109 & year == 4, NA, ss)
     ) %>%
   filter(complete.cases(ss))
 

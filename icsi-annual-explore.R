@@ -25,7 +25,7 @@ icsi_sum <-
     sem = sd/sqrt(n)
     ) %>%
   ungroup()
-
+# plot
 pj <- position_jitter(width = .1, height = .1)
 pn <- position_nudge(x = .2, y = 0)
 ggplot(icsi_sum, aes(year, m)) +
@@ -38,48 +38,168 @@ ggplot(icsi_sum, aes(year, m)) +
   geom_bar(stat = "identity", fill = "white", color = "black", width = 1/2, position = pn, alpha = 1/3) +
   geom_errorbar(aes(ymin = m-sd, ymax = m+sd, width = .4)) +
   theme_classic()
-
-ggplot(complete_icsi_data, aes(year, days_from_baseline/365, group = year)) +
+# boxplot
+ggplot(complete_icsi_data, aes(year, days_from_baseline, group = year)) +
   geom_point(
     alpha = 1/3,
     position = pj
   ) +
-  geom_boxplot(position = pn) 
+  geom_boxplot(position = pn, width = .2) 
 
-# Making sure that each timepoint has more days past than the last
-test <- 
-  complete_icsi_data %>%
-  select(ss, year, days_from_baseline) %>%
-  pivot_wider(
-    id_cols = ss, 
-    names_from = year, 
-    values_from = days_from_baseline, 
-    names_prefix = "year_"
-    ) %>%
+
+# might want to take a look at participants with high values for annual 1
+greater_than_3_months <-
+  complete_icsi_data %>% 
+  filter(year == 1, days_from_baseline > 365+(3*30)) # greater than 3 months 
+greater_than_3_months_ss <- 
+  complete_icsi_data %>% 
+  filter(ss %in% greater_than_3_months$ss)
+# What was determined from examining the df above:
+# participants 78, 82, 90, 158, 244 were sent year 1 annual at year 2 and then 
+# sent another one quickly after (< 4 months later); rather than deleting this 
+# extra survey, it was kept for more data points
+# therefore, analysis should proceed with days since baseline, NOT YEAR
+
+#########
+#       #
+# PLOTS #
+#       #
+#########
+
+timepoints_ss <- complete_icsi_data %>% count(ss)
+complete_icsi_data_n <- complete_icsi_data %>% left_join(., timepoints_ss, by = "ss")
+
+
+pd <- position_dodge(width = .1)
+ggplot(complete_icsi_data_n, aes(timestamp, icsi, group = ss, color = factor(n))) +
+  #geom_point(position = pd) +
+  geom_line(position = pd) +
+  scale_color_brewer(palette = "Set2") +
+  labs(x = "Time", y = "ICSI Score") +
+  theme_classic()
+
+ggplot(complete_icsi_data_n, aes(days_from_baseline, icsi, group = ss, color = factor(n))) +
+  geom_line(position = pd) +
+  scale_color_brewer(palette = "Set2") +
+  labs(x = "Days since baseline", y = "ICSI Score") +
+  theme_classic()
+
+ggplot(complete_icsi_data_n, aes(days_from_baseline, icsi, group = ss)) +
+  geom_smooth(method = "lm", se = FALSE, size = 1/2, color = "grey") +
+  geom_smooth(aes(group = 1), method = "lm", se = TRUE, color = "red") +
+  labs(x = "Days since baseline", y = "ICSI Score") +
+  theme_classic()
+
+###################
+#                 #
+# Linear Modeling #
+#                 #
+###################
+
+# Modeling individuals with at least 2 time points:
+# data:
+lvl1_data <- complete_icsi_data_n %>% filter(n > 1) # at least 2 time points
+
+# mods
+lvl1_mods <- 
+  lvl1_data %>% 
+  nest_by(ss) %>%
   mutate(
-    y1_y0 = year_1-year_0,
-    y2_y1 = year_2-year_1,
-    y3_y2 = year_3-year_2,
-    y4_y3 = year_4-year_3,
-    y5_y4 = year_1-year_0
+    mod = list(lm(icsi ~ 1 + days_from_baseline, data = data)),
+    mod_mc = list(lm(icsi ~ 1 + scale(days_from_baseline, scale = FALSE), data = data))
     )
 
-test %>% select(ss, y1_y0:y5_y4) %>% pivot_longer(-ss) %>% filter(value < 0)
+# estimates from MEAN CENTERED MODEL (i.e., intercept = mean ICSI for each ss)
+lvl1_ests <- 
+  lvl1_mods %>%
+  summarise(broom::tidy(mod_mc)) %>%
+  mutate(
+    term = gsub("[\\(\\)]", "", term), 
+    term = gsub("scale(days_from_baseline, scale = FALSE)", "days_mc", term)
+  ) %>%
+  ungroup()
 
-complete_icsi_data %>% filter(year == 2, days_from_baseline>1000)
-complete_icsi_data %>% filter(ss==162) # looks like a year 1 was given at year 2
+# visualizing intercepts (average ICSI score)
+ggplot(lvl1_ests %>% filter(term == "Intercept"), aes(estimate)) +
+  geom_histogram(binwidth = 1) +
+  labs(x = "Intercept (mean ICSI score)", y = "Frequency") +
+  theme_minimal()
 
-complete_icsi_data %>% filter(year == 4, days_from_baseline<1200)
-complete_icsi_data %>% filter(ss==156) # should be a year 3
+# visualizing slopes
+ggplot(lvl1_ests %>% filter(term == "days_mc"), aes(estimate)) +
+  geom_histogram(binwidth = .001) +
+  labs(x = "Slope", y = "Frequency") +
+  theme_minimal()
 
-# EDIT SUBJECT 109!
-complete_icsi_data %>% filter(year == 4, days_from_baseline>1700)
-complete_icsi_data %>% filter(ss==109) # ss 109 should get rid of year 4 data and just use year 5
+# taking a look at these "outlier" slopes
+# gathers summary stats
+lvl1_ests %>% 
+  group_by(term) %>%
+  summarise(m = mean(estimate), n = n(), sd = sd(estimate), sem = sd/sqrt(n)) %>%
+  ungroup()
 
-complete_icsi_data %>% filter(year == 5, days_from_baseline>2000)
-complete_icsi_data %>% filter(ss==30) # no issue here just took it late
+# These are "outlier" slopes
+big_slopes <-
+  lvl1_ests %>% 
+  filter(term == "days_mc", abs(estimate) > .000559 + 2*.00335) # > 2SD
+# subjects with "outlier slopes"
+big_slopes_ss <- complete_icsi_data_n %>% filter(ss %in% big_slopes$ss)
+
+# these look fine to me!
+ggplot(big_slopes_ss, aes(days_from_baseline, icsi, group = ss)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~ss)
+
+#################
+#               #
+# MAIN ANALYSES #
+#               #
+#################
+
+# QUESTION 1: Which PC best predicts ICSI at baseline?
+# ICSI ~ PC1 + PC2 + PC3
+load("../output/mmh-res.RData") # loads PCA results
+
+# factor scores for the rows (subjects)
+fi <- 
+  as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
+  mutate(ss = as.numeric(ss))
+
+fi_icsi_baseline <-
+  left_join(fi, complete_icsi_data_n %>% filter(year == 0), by = "ss") %>%
+  select(ss, year, timestamp, icsi, V1:V41)
+
+# Q1 MODEL
+q1_mod <- lm(icsi ~ 1 + V1 + V2 + V3, data = fi_icsi_baseline)
+summary(q1_mod)     # regression results
+performance(q1_mod) # looks at performance metrics
+check_model(q1_mod) # checks assumptions
+
+# QUESTION 2: which PC best predicts longitudinal change?
+# ICSI average (intercept) ~ PC1 + PC2 + PC3
+# ICSI slope (days_mc) ~ PC1 + PC2 + PC3
+fi_icsi_longit <- 
+  left_join(fi, lvl1_ests %>% select(ss, term, estimate), by = "ss") %>%
+  select(ss, estimate, term, V1:V41) %>%
+  filter(complete.cases(.)) # filters out participants w/o longitudinal data
+
+length(unique(fi_icsi_longit$ss)) # total sample size is 171 (lost 29 ss to follow-up)
+
+# models level 2
+lvl2_mod <-
+  fi_icsi_longit %>% 
+  nest_by(term) %>%
+  mutate(mod = list(lm(estimate ~ 1 + V1 + V2 + V3, data = data)))
+
+lvl2_mod %>% 
+  summarise(broom::tidy(mod, conf.int = TRUE, conf.level = 0.95)) %>%
+  ungroup() %>%
+  mutate(source = rep(lvl2_mod$term, each = 4))
+
+  
 
 
-# might want to take a look at participants with high vlaues for annual 1
-complete_icsi_data %>% filter(year == 1, days_from_baseline>400)
+
+# try to replicate with lmer
 

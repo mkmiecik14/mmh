@@ -13,6 +13,9 @@ library(TInPosition) # this loads all of ExPosition
 # For the API configuration
 library(httr); library(jsonlite);
 
+# To assess quality of linear models
+library(performance)
+
 
 
 # Plotting tools ----
