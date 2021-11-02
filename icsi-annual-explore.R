@@ -90,6 +90,23 @@ ggplot(complete_icsi_data_n, aes(days_from_baseline, icsi, group = ss)) +
   labs(x = "Days since baseline", y = "ICSI Score") +
   theme_classic()
 
+ggplot(complete_icsi_data_n, aes(days_from_baseline, icsi)) +
+  geom_point(alpha = 1/3, position = position_jitter(width = .1, height = .2)) +
+  #geom_smooth(method = "lm", se = FALSE, size = 1/2, color = "grey") +
+  #geom_smooth(aes(group = 1), method = "lm", se = TRUE, color = "red") +
+  stat_smooth(method = "lm", formula = y ~ x + I(x^2), size = 1) +
+  stat_smooth(
+    aes(group = ss), 
+    method = "lm", 
+    formula = y ~ x + I(x^2), 
+    size = 1/2, 
+    se = FALSE, 
+    color = "black", 
+    alpha = 1/3
+    ) +
+  labs(x = "Days since baseline", y = "ICSI Score") +
+  theme_classic()
+
 ###################
 #                 #
 # Linear Modeling #
@@ -176,6 +193,7 @@ summary(q1_mod)     # regression results
 performance(q1_mod) # looks at performance metrics
 check_model(q1_mod) # checks assumptions
 
+
 # QUESTION 2: which PC best predicts longitudinal change?
 # ICSI average (intercept) ~ PC1 + PC2 + PC3
 # ICSI slope (days_mc) ~ PC1 + PC2 + PC3
@@ -197,9 +215,38 @@ lvl2_mod %>%
   ungroup() %>%
   mutate(source = rep(lvl2_mod$term, each = 4))
 
-  
+library(lme4)
+# https://featuredcontent.psychonomic.org/putting-ps-into-lmer-mixed-model-regression-and-statistical-significance/
 
+lmer(Reaction ~ 1 + Days + (1 + Days | Subject), sleepstudy)
+
+lvl1_data
+summary(lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = lvl1_data))
+summary(lmer(icsi ~ 1 + days_from_baseline + (1 | ss), data = lvl1_data))
+
+# Try to model here the intercept model without covariates to compare!
+
+lvl1_data_fi <- 
+  lvl1_data %>%
+  group_by(ss) %>%
+  mutate(days_mc = as.numeric(scale(days_from_baseline, scale = FALSE))) %>%
+  ungroup() %>%
+  left_join(., fi, by = "ss") %>% 
+  filter(complete.cases(.))
+
+test_lmer <- lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss) + V1 + V2 + V3, data = lvl1_data_fi)
+test_lmer <- lmer(icsi ~ 1 + days_mc + (1 + days_mc | ss) + V1 + V2 + V3, data = lvl1_data_fi)
+test_lmer <- lmer(icsi ~ 1 + days_mc + V1 + V2 + V3 + (1 + days_mc + V1 + V2 + V3 | ss) , data = lvl1_data_fi)
+
+summary(test_lmer)
+summary(test_lmer)
+anova(test_lmer)
 
 
 # try to replicate with lmer
+
+
+
+
+# try also with quadratic fit
 
