@@ -31,8 +31,12 @@ pca_data <-
 
 # PCA must have complete data from everyone
 # therefore, cases are deleted list-wise
-pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 153 discarded
-pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 200 kept
+# pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 153 discarded
+# pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 200 kept
+
+# removes coldpain as it is redundant with coldpain_resid (the better measure)
+pca_data_discard  <- pca_data %>% select(-coldpain) %>% filter(!complete.cases(.)) # 153 discarded
+pca_data_keep     <- pca_data %>% select(-coldpain) %>% filter(complete.cases(.))  # 200 kept
 
 # Converts PCA data to matrix
 pca_data_mat <- as.matrix(select(pca_data_keep, -ss)) # removes ss id

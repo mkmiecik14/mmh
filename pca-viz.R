@@ -97,7 +97,7 @@ pca_furnish <-
 fj <- as_tibble(pca_res$Fixed.Data$ExPosition.Data$fj, rownames = "meas")
 
 # Component plots
-ggplot(fj, aes(V2, V3)) +
+ggplot(fj, aes(V1, V2)) +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
   geom_point() +
@@ -123,6 +123,33 @@ boot_res_long <-
   mutate(sig = abs(bsr) > critical_val) # calculates significance (think like t-test)
 
 # Bootstrapped Results
+# COMPONENT 1
+this_comp <- 1
+this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
+axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
+ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Bootstrap Ratio", y = "Measure") +
+  scale_fill_manual(values = c(rdgy_pal[3])) +
+  geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
+  scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = NULL, limits = c(-9, 9)) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
+
+# COMPONENT 2
+this_comp <- 2
+this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
+axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
+ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Bootstrap Ratio", y = "Measure") +
+  scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
+  geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
+  scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = TRUE, limits = c(-9, 9)) +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
+
+# COMPONENT 3
 this_comp <- 3
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
@@ -131,7 +158,7 @@ ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   labs(x = "Bootstrap Ratio", y = "Measure") +
   scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
   geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
-  coord_cartesian(xlim = c(-10, 10)) +
+  scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = TRUE, limits = c(-9, 9)) +
   theme_minimal() +
   theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
 
@@ -141,8 +168,8 @@ fj_boot_sig <-
   pivot_wider(id_cols = meas, names_from = comp, values_from = sig, names_prefix = "V")
 
 # Component plots
-comp1 <- "V2"
-comp2 <- "V3"
+comp1 <- "V1"
+comp2 <- "V2"
 fj_colors <-
   fj_boot_sig %>% 
   select(meas, comp1, comp2) %>%
@@ -171,11 +198,36 @@ fj_long <-
   mutate(comp = as.numeric(gsub("V", "", comp))) %>%
   arrange(comp)
 
+
+
 # All the data needed for factor scores + bootstrap ratios
 fj_data <- left_join(fj_long, boot_res_long, by = c("comp", "meas"))
 
 # FACTOR SCORE PLOTS COLORED BY BSR
 fj_bsr_plot <- function(x = c(1, 2)){
+  
+  # inserting categories
+  meas_cats <- 
+    tibble(meas = unique(fj_long$meas)) %>%
+    mutate(
+      cat =
+        case_when(
+          grepl("after_pain", meas) ~ "ppt_afterpain",
+          grepl("aud", meas) ~ "auditory",
+          grepl("vis", meas) ~ "vis",
+          grepl("ppt", meas) ~ "ppt_threshold",
+          grepl("bladder", meas) ~ "bladder_mcgill",
+          grepl("vag", meas) ~ "vag_mcgill",
+          grepl("bs", meas) ~ "bladder_task",
+          grepl("fs", meas) ~ "bladder_task",
+          grepl("fu", meas) ~ "bladder_task",
+          grepl("mt", meas) ~ "bladder_task",
+          grepl("bladder", meas) ~ "bladder",
+          grepl("ts", meas) ~ "temporal_sum",
+          grepl("cpm", meas) ~ "cpm",
+          grepl("coldpain", meas) ~ "cold_pain"
+        )
+    )
   
   comps_to_plot <- x # only include 2
   data_to_plot <-
@@ -189,7 +241,10 @@ fj_bsr_plot <- function(x = c(1, 2)){
         .data[[paste0("sig_",comps_to_plot[1])]] == TRUE & .data[[paste0("sig_",comps_to_plot[2])]] == FALSE ~ as.character(comps_to_plot[1]),
         .data[[paste0("sig_",comps_to_plot[1])]] == FALSE & .data[[paste0("sig_",comps_to_plot[2])]] == TRUE ~ as.character(comps_to_plot[2])
       )
-    )
+    ) %>%
+    # joins categories
+    left_join(., meas_cats, by = "meas")
+  
   # Plot
   this_plot <-
     ggplot(
@@ -197,7 +252,8 @@ fj_bsr_plot <- function(x = c(1, 2)){
     aes(
       .data[[paste0("fs_", comps_to_plot[1])]], 
       .data[[paste0("fs_", comps_to_plot[2])]],
-      color = sig
+      color = cat,
+      shape = sig
       )
     ) +
     pca_furnish +
@@ -206,7 +262,8 @@ fj_bsr_plot <- function(x = c(1, 2)){
     geom_point() +
     coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
     geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15) +
-    scale_color_manual(values = rev(ghibli_palettes$MononokeMedium)) + 
+    scale_color_brewer(palette = "Paired") +
+    scale_shape_manual(values = c(15, 17, 19, 1)) +
     theme(legend.position = "bottom")
   
   return(this_plot)
@@ -214,7 +271,29 @@ fj_bsr_plot <- function(x = c(1, 2)){
 }
 
 # Plot
-fj_bsr_plot(x = c(2, 3))
+fj_plot_comps_1_2 <- fj_bsr_plot(x = c(1, 2))
+fj_plot_comps_1_2 # plots
+
+fj_plot_comps_2_3 <- fj_bsr_plot(x = c(2, 3))
+fj_plot_comps_2_3 # plots
+
+# Saves out for manuscript (uncomment to save)
+# ggsave(
+#   filename = "../output/fj-plot-comps-1-2.svg", 
+#   plot = fj_plot_comps_1_2,
+#   width = 5, 
+#   height = 4, 
+#   units = "in"
+#   )
+# 
+# ggsave(
+#   filename = "../output/fj-plot-comps-2-3.svg", 
+#   plot = fj_plot_comps_2_3,
+#   width = 5, 
+#   height = 4, 
+#   units = "in"
+# )
+
 
 ##############
 #            #
@@ -228,7 +307,7 @@ fi <-
   as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
   mutate(ss = as.numeric(ss)) %>%
   left_join(., ss_codes %>% select(ss, group), by = "ss") %>%
-  select(ss, group, V1:V41)
+  select(ss, group, V1:V40)
 
 # Caluclates barycenters
 fi_sum_long <- 
@@ -245,7 +324,7 @@ fi_sum_wide <-
   pivot_wider(id_cols = group, names_from = comp, values_from = m)
 
 # FI PLOT
-ggplot(fi_sum_wide, aes(V2, V3, color = group)) +
+ggplot(fi_sum_wide, aes(V1, V2, color = group)) +
   pca_furnish +
   geom_vline(xintercept = 0, alpha = 1/3) +
   geom_hline(yintercept = 0, alpha = 1/3) +
@@ -287,7 +366,6 @@ load("../output/extra-data.RData") # loads extra PCA data
 extra_data_match <- 
   extra_pca_data %>% filter(ss %in% fi$ss) # includes only pca ss
 
-
 # Z-score procedure
 # everything is continuous meas/can be z scored except for ibs and ibs_sub
 extra_data_match_cont <- 
@@ -326,6 +404,7 @@ ggplot(fi_extra, aes(V1, V2, color = promis_depression)) +
 # plot here with the ROME groups
 
 # Correlations between extra measures and PCA components
+# Prepares correlation data
 cor_data <- 
   fi_extra %>%
   select(
@@ -343,6 +422,9 @@ cor_data <-
     promis_depression # promis depression
     )
 
+set.seed(14) # sets seed for reproducible boostrapping
+
+# Computes bootstrapped correlations
 cor_res <-
   psych::corr.test(
     cor_data %>% select(-ss),
@@ -365,7 +447,7 @@ ggplot(
   cor_ci %>% filter(var1 %in% c("V1", "V2", "V3")), 
   aes(r, var2, color = sig)
   ) +
-  geom_point() +
+  geom_point(size = 2) +
   scale_color_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
   geom_errorbarh(aes(xmin = lower, xmax = upper), height = .2) +
   coord_cartesian(xlim = c(-1, 1)) +
@@ -374,7 +456,7 @@ ggplot(
   labs(x = "Correlation (r)", y = "Variable 2", caption = "95% CI error bars.") +
   facet_wrap(~var1) +
   theme_minimal() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 
 
 

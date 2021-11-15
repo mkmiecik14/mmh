@@ -126,10 +126,10 @@ lvl1_mods <-
     mod_mc = list(lm(icsi ~ 1 + scale(days_from_baseline, scale = FALSE), data = data))
     )
 
-# estimates from MEAN CENTERED MODEL (i.e., intercept = mean ICSI for each ss)
+# estimates
 lvl1_ests <- 
   lvl1_mods %>%
-  summarise(broom::tidy(mod_mc)) %>%
+  summarise(broom::tidy(mod)) %>%
   mutate(
     term = gsub("[\\(\\)]", "", term), 
     term = gsub("scale(days_from_baseline, scale = FALSE)", "days_mc", term)
@@ -143,7 +143,7 @@ ggplot(lvl1_ests %>% filter(term == "Intercept"), aes(estimate)) +
   theme_minimal()
 
 # visualizing slopes
-ggplot(lvl1_ests %>% filter(term == "days_mc"), aes(estimate)) +
+ggplot(lvl1_ests %>% filter(term == "days_from_baseline"), aes(estimate)) +
   geom_histogram(binwidth = .001) +
   labs(x = "Slope", y = "Frequency") +
   theme_minimal()
@@ -158,7 +158,7 @@ lvl1_ests %>%
 # These are "outlier" slopes
 big_slopes <-
   lvl1_ests %>% 
-  filter(term == "days_mc", abs(estimate) > .000559 + 2*.00335) # > 2SD
+  filter(term == "days_from_baseline", abs(estimate) > .000559 + 2*.00335) # > 2SD
 # subjects with "outlier slopes"
 big_slopes_ss <- complete_icsi_data_n %>% filter(ss %in% big_slopes$ss)
 
@@ -185,7 +185,7 @@ fi <-
 
 fi_icsi_baseline <-
   left_join(fi, complete_icsi_data_n %>% filter(year == 0), by = "ss") %>%
-  select(ss, year, timestamp, icsi, V1:V41)
+  select(ss, year, timestamp, icsi, V1:V40)
 
 # Q1 MODEL
 q1_mod <- lm(icsi ~ 1 + V1 + V2 + V3, data = fi_icsi_baseline)
@@ -199,33 +199,109 @@ check_model(q1_mod) # checks assumptions
 # ICSI slope (days_mc) ~ PC1 + PC2 + PC3
 fi_icsi_longit <- 
   left_join(fi, lvl1_ests %>% select(ss, term, estimate), by = "ss") %>%
-  select(ss, estimate, term, V1:V41) %>%
+  select(ss, estimate, term, V1:V40) %>%
   filter(complete.cases(.)) # filters out participants w/o longitudinal data
-
 length(unique(fi_icsi_longit$ss)) # total sample size is 171 (lost 29 ss to follow-up)
 
 # models level 2
 lvl2_mod <-
   fi_icsi_longit %>% 
   nest_by(term) %>%
-  mutate(mod = list(lm(estimate ~ 1 + V1 + V2 + V3, data = data)))
+  mutate(
+    mod1 = list(lm(estimate ~ 1 + V1 + V2 + V3, data = data)),
+    mod2 = list(lm(estimate ~ 1, data = data))
+    )
 
-lvl2_mod %>% 
-  summarise(broom::tidy(mod, conf.int = TRUE, conf.level = 0.95)) %>%
+# full mlm
+lvl2_est <- 
+  lvl2_mod %>% 
+  summarise(broom::tidy(mod1, conf.int = TRUE, conf.level = 0.95)) %>%
   ungroup() %>%
   mutate(source = rep(lvl2_mod$term, each = 4))
 
+# just intercepts
+lvl2_est_int <- 
+  lvl2_mod %>% 
+  summarise(broom::tidy(mod2, conf.int = TRUE, conf.level = 0.95)) %>%
+  ungroup() %>%
+  mutate(source = rep(lvl2_mod$term, each = 1))
+
+
+# Mixed-effects modeling
 library(lme4)
+library(broomExtra)
+library(languageR)
+library(lmerTest)
 # https://featuredcontent.psychonomic.org/putting-ps-into-lmer-mixed-model-regression-and-statistical-significance/
+# lmer(Reaction ~ 1 + Days + (1 + Days | Subject), sleepstudy)
 
-lmer(Reaction ~ 1 + Days + (1 + Days | Subject), sleepstudy)
+mem_data <- 
+  complete_icsi_data_n %>% # HERE YOU CAN CHOOSE TO FILTER DOWN TO THOSE SUBJECTS WITH > 1 TIMEPOINT
+  left_join(., fi, by = "ss") %>%
+  filter(complete.cases(.))
+length(unique(mem_data$ss))
 
-lvl1_data
-summary(lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = lvl1_data))
-summary(lmer(icsi ~ 1 + days_from_baseline + (1 | ss), data = lvl1_data))
+maximal_mod <- lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = mem_data, REML = TRUE) # look up REML
+summary(maximal_mod)
+rand_int_mod <- lmer(icsi ~ 1 + days_from_baseline + (1 | ss), data = mem_data, REML = TRUE) # look up REML
+summary(rand_int_mod)
+rand_slope_mod <- lmer(icsi ~ 1 + days_from_baseline + (0 + days_from_baseline | ss), data = mem_data, REML = TRUE)
+summary(rand_slope_mod)
 
-# Try to model here the intercept model without covariates to compare!
+test <- mem_data %>% mutate(days_from_baseline = days_from_baseline/365)
+maximal_mod_test <- lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = test, REML = TRUE) # look up REML
+summary(maximal_mod)
+rand_int_mod_test <- lmer(icsi ~ 1 + days_from_baseline + (1 | ss), data = test, REML = TRUE) # look up REML
+summary(rand_int_mod_test)
+rand_slope_mod <- lmer(icsi ~ 1 + days_from_baseline + (0 + days_from_baseline | ss), data = mem_data, REML = TRUE)
+summary(rand_slope_mod)
 
+anova(maximal_mod, rand_int_mod)
+
+rand_int_mod_aug <- rand_int_mod_test %>% augment()
+
+ggplot(rand_int_mod_aug %>% filter(ss < 50), aes(days_from_baseline, icsi)) +
+  geom_line(aes(y = .fitted), color = "blue") + 
+  geom_point() +
+  facet_wrap(~ss, ncol = 5)
+
+ests_wide <- fi_icsi_longit %>% pivot_wider(id_cols = ss, values_from = estimate, names_from = term)
+cor.test(ests_wide$Intercept, ests_wide$days_from_baseline)
+sd(ests_wide$Intercept)
+sd(ests_wide$days_from_baseline)
+ggplot(ests_wide, aes(Intercept, days_from_baseline)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE)
+
+summary(lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = mem_data %>% filter(n > 5), REML = TRUE)) # look up REML
+
+
+# running simple model first
+mod1 <- lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = lvl1_data, REML = TRUE) # look up REML
+summary(mod1)
+#write_csv(lvl1_data, file = "for-ed.csv")
+
+lvl1_data_mc %>% group_by(year) %>% summarise(m = mean(icsi), n= n())
+
+mod2 <- lmer(icsi ~ 1 + days_from_baseline + (1 | ss) + (0+days_from_baseline|ss), data = lvl1_data_mc)
+summary(mod2)
+
+anova(mod2, mod1)
+
+lmer(icsi ~ 1 + days_from_baseline + (1 | ss), data = lvl1_data)
+
+head(lme4::ranef(mod1))
+test <- head(ranef(mod1))
+cor(as.matrix(test$ss))
+
+ggplot(lvl1_data %>% filter(ss < 90), aes(days_from_baseline, icsi)) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ss)
+
+## DIRECTLY COMPAIRING THE SAME PARTICIPANTS!
+# Data for mixed effects modeling
 lvl1_data_fi <- 
   lvl1_data %>%
   group_by(ss) %>%
@@ -234,7 +310,78 @@ lvl1_data_fi <-
   left_join(., fi, by = "ss") %>% 
   filter(complete.cases(.))
 
-test_lmer <- lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss) + V1 + V2 + V3, data = lvl1_data_fi)
+length(unique(lvl1_data_fi$ss)) #n=171
+
+mod1 <- lmer(icsi ~ 1 + days_from_baseline + (1 + days_from_baseline | ss), data = lvl1_data_fi, REML = FALSE)
+summary(mod1)
+ranef(mod1)
+
+lvl1_new_mods <- 
+  lvl1_data_fi %>% 
+  nest_by(ss) %>%
+  mutate(
+    mod = list(lm(icsi ~ 1 + days_from_baseline, data = data))
+  )
+
+lvl1_new_ests <- 
+  lvl1_new_mods %>%
+  summarise(broom::tidy(mod)) %>%
+  mutate(
+    term = gsub("[\\(\\)]", "", term)
+  ) %>%
+  ungroup()
+
+sing <- lvl1_new_ests %>% filter(is.na(std.error))
+
+
+ggplot(lvl1_data %>% filter(ss %in% sing$ss), aes(days_from_baseline, icsi)) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ss)
+
+
+sing2 <- lvl1_data %>% filter(n == 2)
+
+
+lvl2_new_mod <-
+  lvl1_new_ests %>% 
+  nest_by(term) %>%
+  mutate(mod = list(lm(estimate ~ 1, data = data)))
+
+lvl2_est <- 
+  lvl2_new_mod %>% 
+  summarise(broom::tidy(mod, conf.int = TRUE, conf.level = 0.95)) %>%
+  ungroup()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+test_lmer <- lmer(
+  icsi ~ 1 + 
+    days_from_baseline*V1 + 
+    days_from_baseline*V2 + 
+    days_from_baseline*V3 + 
+    (1 + days_from_baseline | ss), 
+  data = lvl1_data_fi
+  )
+summary(test_lmer)
+tidy(test_lmer)
+
+
 test_lmer <- lmer(icsi ~ 1 + days_mc + (1 + days_mc | ss) + V1 + V2 + V3, data = lvl1_data_fi)
 test_lmer <- lmer(icsi ~ 1 + days_mc + V1 + V2 + V3 + (1 + days_mc + V1 + V2 + V3 | ss) , data = lvl1_data_fi)
 
