@@ -78,6 +78,53 @@ arm1_avisit1_api <-
 # parses .$content
 arm1_avisit1_api_parsed <- content(arm1_avisit1_api, as = "parsed")
 
+# SCREEN VISIT DATA
+arm1_screenvisit_api <- 
+  POST(
+    url = api_url,
+    body = list(
+      token = arm1_api_token,
+      content = "record",
+      format = "csv",
+      type = "eav", # for longitudinal output
+      "events[0]" = "screen_visit_arm_1",
+      rawOrLabel = "raw",
+      rawOrLabelHeaders = "raw",
+      exportCheckboxLabel = "false",
+      exportSurveyFields = "true", # reports timestamps etc.
+      exportDataAccessGroups = "false",
+      returnFormat = "csv"
+    )
+  )
+# parses .$content
+arm1_screenvisit_api_parsed <- content(arm1_screenvisit_api, as = "parsed")
+
+# NON-STANDARD FOLLOWUP
+# Some participants were given original questionnaires at year 1 followup
+# these variables do not start with an "a"
+arm1_year1_followup <- 
+  POST(
+    url = api_url,
+    body = list(
+      token = arm1_api_token,
+      content = "record",
+      format = "csv",
+      type = "eav", # for longitudinal output
+      "events[0]" = "year_1_followup_do_arm_1",  
+      rawOrLabel = "raw",
+      rawOrLabelHeaders = "raw",
+      exportCheckboxLabel = "false",
+      exportSurveyFields = "true", # reports timestamps etc.
+      exportDataAccessGroups = "false",
+      returnFormat = "csv"
+    )
+  )
+# parses .$content
+arm1_year1_followup_parsed <- content(arm1_year1_followup, as = "parsed")
+
+
+
+
 #########################################
 #                                       #
 # Grabs annuals from EH13-094- Arm 2    #
@@ -127,6 +174,29 @@ arm2_avisit1_api <-
 # parses .$content
 arm2_avisit1_api_parsed <- content(arm2_avisit1_api, as = "parsed")
 
+# SCREEN VISIT DATA
+arm2_screenvisit_api <- 
+  POST(
+    url = api_url,
+    body = list(
+      token = arm2_api_token,
+      content = "record",
+      format = "csv",
+      type = "eav", # for longitudinal output
+      #"forms[0]" = "ic_problem_and_symptoms_indices",
+      "events[0]" = "screen_visit_arm_1",
+      rawOrLabel = "raw",
+      rawOrLabelHeaders = "raw",
+      exportCheckboxLabel = "false",
+      exportSurveyFields = "true", # reports timestamps etc.
+      exportDataAccessGroups = "false",
+      returnFormat = "csv"
+    )
+  )
+# parses .$content
+arm2_screenvisit_api_parsed <- content(arm2_screenvisit_api, as = "parsed")
+
+
 #######################################
 #                                     #
 # EH13-094 Shortened Annual Follow Up #
@@ -154,17 +224,25 @@ short_annuals <-
 short_annuals_parsed <- content(short_annuals, as = "parsed")
 
 
+
+
 # Saves out API data ----
 
 # ARM 1 ANNUAL DATA
 save(arm1_annuals_parsed, file = "../output/arm1_annuals_parsed.RData")
 # ARM 1 ASSESSMENT VISIT 1 DATA 
 save(arm1_avisit1_api_parsed, file = "../output/arm1_avisit1_api_parsed.RData")
+# ARM 1 SCREEN VISIT DATA
+save(arm1_screenvisit_api_parsed, file = "../output/arm1_screenvisit_api_parsed.RData")
+# ARM 1 Year 1 FOLLOW UP AS ASSESSMENT VISIT 1
+save(arm1_year1_followup_parsed, file = "../output/arm1_year1_followup_parsed.RData")
 
 # ARM 2 ANNUAL DATA
 save(arm2_annuals_parsed, file = "../output/arm2_annuals_parsed.RData")
 # ARM 2 ASSESSMENT VISIT 1 DATA
 save(arm2_avisit1_api_parsed, file = "../output/arm2_avisit1_api_parsed.RData")
+# ARM 2 SCREEN VISIT DATA
+save(arm2_screenvisit_api_parsed, file = "../output/arm2_screenvisit_api_parsed.RData")
 
 # SHORTENED ANNUALS DATA
 save(short_annuals_parsed, file = "../output/short_annuals_parsed.RData")
@@ -185,7 +263,13 @@ rm(
   api_url,
   arm1_api_token,
   arm2_api_token,
-  shortened_annual_api_token
+  shortened_annual_api_token,
+  arm1_screenvisit_api,
+  arm1_screenvisit_api_parsed,
+  arm2_screenvisit_api,
+  arm2_screenvisit_api_parsed,
+  arm1_year1_followup,
+  arm1_year1_followup_parsed
 )
 
 
