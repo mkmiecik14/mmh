@@ -16,7 +16,13 @@ library(httr); library(jsonlite);
 # To assess quality of linear models
 library(performance)
 
+# mixed effects modeling
+library(lme4)
+library(broomExtra)
+library(lmerTest)
 
+# Probing interactions
+library(interactions)
 
 # Plotting tools ----
 # use geom_flat_violin()
