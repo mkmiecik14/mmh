@@ -11,6 +11,7 @@ source("r-prep.R") # Prepares R workspace
 # Loading data ----
 load("../output/complete-extra-annual-data.Rdata") # annual data
 load("../output/mmh-res.RData") # PCA results
+load("../output/ss-codes.RData") # subject codes
 
 ###############
 #             #
@@ -141,6 +142,76 @@ ggplot(pelvic_pain_data_pca_ss_z_wide, aes(year, pelvic_pain)) +
     aes(group = ss)
     ) +
   coord_cartesian(ylim = c(-5, 15))
+
+# Longitudinal plot with groups
+baseline_measures <- 
+  complete_extra_annual_data %>% filter(year == 0) %>%
+  left_join(., ss_codes %>% select(ss, group), by = "ss") %>%
+  mutate(
+    dys_status = ifelse(cramp_pain_no_nsaid >= 50, "DYS", "NODYS"),
+    cpp_status = case_when(
+      group %in% c("PBS", "PAIN") ~ "CPP",
+      group %in% c("HC", "DYSB", "DYS") ~ "NOCPP",
+      TRUE ~ as.character(group)
+    )
+    ) %>%
+  relocate(c(group, dys_status, cpp_status), .before = year)
+  
+
+long_data_with_groups <- 
+  pelvic_pain_data_pca_ss_new_z %>%
+  left_join(
+    ., 
+    select(
+      baseline_measures, 
+      ss, 
+      group, 
+      dys_status, 
+      cpp_status, 
+      bs_cramp_pain_no_nsaid = cramp_pain_no_nsaid
+      ),
+    by = "ss"
+    ) 
+
+ggplot(long_data_with_groups, aes(year, pelvic_pain)) +
+  geom_point(position = pd, alpha = 1/3, aes(group = ss, color = dys_status)) +
+  geom_line(
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    alpha = 1/3,
+    aes(group = ss, color = dys_status)
+  ) +
+  geom_line(
+    size = 2,
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    aes(group = dys_status, linetype = dys_status),
+    color = "black"
+  ) +
+  coord_cartesian(ylim = c(-5, 15))
+
+ggplot(long_data_with_groups %>% filter(year < 2), aes(year, pelvic_pain)) +
+  geom_point(position = pd, alpha = 1/3, aes(group = ss, color = cpp_status)) +
+  geom_line(
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    alpha = 1/3,
+    aes(group = ss, color = cpp_status)
+  ) +
+  geom_line(
+    #size = 2,
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    aes(group = cpp_status, linetype = cpp_status),
+    color = "black"
+  ) +
+  coord_cartesian(ylim = c(-5, 15))
+
+
 
 #############################
 #                           #
@@ -447,7 +518,7 @@ anova(max_mod_newz, full_mod_newz) # compares against model without moderators
 
 one_year_follow <-
   fi_pp_newz %>%
-  filter(year %in% c(0,1)) %>% # switch this to 2 for 2 year outcome  
+  filter(year %in% c(0,2)) %>% # switch this to 2 for 2 year outcome  
   group_by(ss) %>%
   mutate(timepoints = n()) %>%
   ungroup() %>%
@@ -465,6 +536,6 @@ one_year_follow_wide <-
   left_join(., fi, by = "ss") %>%
   filter(complete.cases(.))
 
-one_year_mod <- lm(pp_1 ~ 1 + pp_0 + V1 + V2 + V3, data = one_year_follow_wide)
+one_year_mod <- lm(pp_2 ~ 1 + pp_0 + V1 + V2 + V3, data = one_year_follow_wide)
 summary(one_year_mod)
 
