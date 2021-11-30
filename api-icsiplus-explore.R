@@ -4,20 +4,14 @@
 
 #* Purpose: This script explores and analyzes the annual data that was 
 #* preprocessed in `api-icsiplus-prepro.R`. Combining several different measures
-#* of pelvic/nonpelvic pain main increase varibility over time
+#* of pelvic/nonpelvic pain main increase variability over time
 
 source("r-prep.R") # Prepares R workspace
 
-# Loading data ----
+# Loading data
 load("../output/complete-extra-annual-data.Rdata") # annual data
 load("../output/mmh-res.RData") # PCA results
 load("../output/ss-codes.RData") # subject codes
-
-###############
-#             #
-# Exploration #
-#             #
-###############
 
 # First, exploring one option of pelvic pain. A z-score combining:
 # 1) urination_pain_last_week
@@ -56,251 +50,21 @@ ggplot(pelvic_pain_data_long, aes(value, color = name)) +
   scale_color_brewer(palette = "Set2") +
   theme(legend.position = "bottom")
 
-# calculating Z-scores
-# first, narrow down the participants in PCA results
-pca_ss <- as.numeric(rownames(pca_res$Fixed.Data$ExPosition.Data$fi)) # PCA subject numbers
+# narrow down the participants in PCA results
+# PCA subject numbers
+pca_ss <- as.numeric(rownames(pca_res$Fixed.Data$ExPosition.Data$fi)) 
 
 # retains only those in PCA
 pelvic_pain_data_pca_ss <- pelvic_pain_data %>% filter(ss %in% pca_ss)
-
 length(unique(pelvic_pain_data_pca_ss$ss)) == length(pca_ss) # same ss
 
-# calculates z scores long format
-pelvic_pain_data_pca_ss_z_long <- 
-  pelvic_pain_data_pca_ss %>%
-  filter(complete.cases(.)) %>% # removes participants with missing data
-  pivot_longer(cols = c(-ss, -year, -timestamp, -days_from_baseline)) %>%
-  group_by(year, name) %>%
-  mutate(z_value = as.numeric(scale(value))) %>% # zscore
-  ungroup()
+#################################################
+#                                               #
+# computing z-scores based on baseline m and sd #
+#                                               #
+#################################################
 
-# proof that z-scores were calculated
-pelvic_pain_data_pca_ss_z_long %>%
-  group_by(year, name) %>%
-  summarise(m = mean(value), m_z = mean(z_value), sd = sd(value), sd_z = sd(z_value)) %>%
-  ungroup()
-
-# z-scores in wide format
-pelvic_pain_data_pca_ss_z_wide <- 
-  pelvic_pain_data_pca_ss_z_long %>%
-  pivot_wider(
-    id_cols = c(ss, year, timestamp, days_from_baseline), 
-    names_from = name, 
-    values_from = c(value, z_value)
-    ) %>%
-  # summed z-score
-  mutate(
-    pelvic_pain = 
-      z_value_urination_pain_last_week + 
-      z_value_bowel_mov_pain_last_week + 
-      z_value_mens_nonmens_pain_week
-    )
-
-# histogram
-ggplot(pelvic_pain_data_pca_ss_z_wide, aes(pelvic_pain)) +
-  geom_histogram(binwidth = .5) +
-  facet_wrap(~year)
-
-# density plot
-ggplot(
-  pelvic_pain_data_pca_ss_z_wide, 
-  aes(pelvic_pain, group = year, color = factor(year))
-  ) +
-  geom_density()
-
-# change over time
-ggplot(pelvic_pain_data_pca_ss_z_wide, aes(year, days_from_baseline)) +
-  geom_point(position = position_jitter(width = .2, height = 0), alpha = 1/3)
-
-pd <- position_dodge(width = .2)
-# suspicious subjects with late year 1
-sus_ss <- 
-  pelvic_pain_data_pca_ss_z_wide %>%
-  filter(year == 1, days_from_baseline > 500)
-
-ggplot(
-  pelvic_pain_data_pca_ss_z_wide %>% filter(ss %in% sus_ss$ss), 
-  aes(year, days_from_baseline, group = ss)
-  ) +
-  geom_point(position = pd, alpha = 1/3) +
-  geom_path(position = pd, alpha = 1/3)
-
-# longitudinal plot 1
-ggplot(pelvic_pain_data_pca_ss_z_wide, aes(year, pelvic_pain)) +
-  geom_point(position = pd, alpha = 1/3, aes(group = ss)) +
-  geom_path(position = pd, alpha = 1/3, aes(group = ss)) +
-  geom_smooth(method = "lm", se = FALSE, color = "red")
-
-# longitudinal plot 2
-ggplot(pelvic_pain_data_pca_ss_z_wide, aes(year, pelvic_pain)) +
-  geom_point(position = pd, alpha = 1/3, aes(group = ss)) +
-  geom_line(
-    stat ="smooth", 
-    method = "lm", 
-    formula = y ~ x,
-    alpha = 1/3,
-    aes(group = ss)
-    ) +
-  coord_cartesian(ylim = c(-5, 15))
-
-# Longitudinal plot with groups
-baseline_measures <- 
-  complete_extra_annual_data %>% filter(year == 0) %>%
-  left_join(., ss_codes %>% select(ss, group), by = "ss") %>%
-  mutate(
-    dys_status = ifelse(cramp_pain_no_nsaid >= 50, "DYS", "NODYS"),
-    cpp_status = case_when(
-      group %in% c("PBS", "PAIN") ~ "CPP",
-      group %in% c("HC", "DYSB", "DYS") ~ "NOCPP",
-      TRUE ~ as.character(group)
-    )
-    ) %>%
-  relocate(c(group, dys_status, cpp_status), .before = year)
-  
-
-long_data_with_groups <- 
-  pelvic_pain_data_pca_ss_new_z %>%
-  left_join(
-    ., 
-    select(
-      baseline_measures, 
-      ss, 
-      group, 
-      dys_status, 
-      cpp_status, 
-      bs_cramp_pain_no_nsaid = cramp_pain_no_nsaid
-      ),
-    by = "ss"
-    ) 
-
-ggplot(long_data_with_groups, aes(year, pelvic_pain)) +
-  geom_point(position = pd, alpha = 1/3, aes(group = ss, color = dys_status)) +
-  geom_line(
-    stat ="smooth", 
-    method = "lm", 
-    formula = y ~ x,
-    alpha = 1/3,
-    aes(group = ss, color = dys_status)
-  ) +
-  geom_line(
-    size = 2,
-    stat ="smooth", 
-    method = "lm", 
-    formula = y ~ x,
-    aes(group = dys_status, linetype = dys_status),
-    color = "black"
-  ) +
-  coord_cartesian(ylim = c(-5, 15))
-
-ggplot(long_data_with_groups %>% filter(year < 2), aes(year, pelvic_pain)) +
-  geom_point(position = pd, alpha = 1/3, aes(group = ss, color = cpp_status)) +
-  geom_line(
-    stat ="smooth", 
-    method = "lm", 
-    formula = y ~ x,
-    alpha = 1/3,
-    aes(group = ss, color = cpp_status)
-  ) +
-  geom_line(
-    #size = 2,
-    stat ="smooth", 
-    method = "lm", 
-    formula = y ~ x,
-    aes(group = cpp_status, linetype = cpp_status),
-    color = "black"
-  ) +
-  coord_cartesian(ylim = c(-5, 15))
-
-
-
-#############################
-#                           #
-# modeling with pelvic_pain #
-#                           #
-#############################
-
-# factor scores for the rows (subjects)
-fi <- 
-  as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
-  mutate(ss = as.numeric(ss))
-
-fi_pp_baseline <-
-  left_join(fi, pelvic_pain_data_pca_ss_z_wide %>% filter(year == 0), by = "ss") %>%
-  select(ss, year, timestamp, days_from_baseline, pelvic_pain, V1:V40)
-
-# Q1 MODEL
-q1_mod <- lm(pelvic_pain ~ 1 + V1 + V2 + V3, data = fi_pp_baseline)
-summary(q1_mod)     # regression results
-performance(q1_mod) # looks at performance metrics
-check_model(q1_mod) # checks assumptions
-
-# QUESTION 2: which PC best predicts longitudinal change?
-fi_pp_longitudinal <- 
-  pelvic_pain_data_pca_ss_z_wide %>% 
-  group_by(ss) %>% 
-  mutate(timepoints = n()) %>% # computes time points
-  ungroup() %>%
-  left_join(., fi, by = "ss")
-
-# Mixed-effects modeling
-library(lme4)
-library(broomExtra)
-library(lmerTest)
-
-# Data for lmer - includes participants with at least 2 timepoints for slopes
-lmer_data <- fi_pp_longitudinal %>% filter(timepoints > 1) # greater than 1 tp
-length(unique(lmer_data$ss)) # n=171, 29 lost to follow-up
-
-# Maximal model - checking to see if random intercepts and slopes converges
-max_mod <- 
-  lmer(
-    pelvic_pain ~ 1 + year + (1 + year | ss), 
-    data = lmer_data, 
-    REML = TRUE
-    )
-summary(max_mod)
-performance(max_mod)
-check_model(max_mod)
-
-min_mod <- 
-  lmer(
-    pelvic_pain ~ 1 + year + (1 | ss), 
-    data = lmer_data, 
-    REML = TRUE
-  )
-summary(min_mod)
-performance(min_mod)
-check_model(min_mod)
-
-anova(min_mod, max_mod) # best to model random slopes
-
-# Full model - includes additional fixed effects
-full_mod <- 
-  lmer(
-    pelvic_pain ~ 1 + year + year*V1 + year*V2 + year*V3 + (1 + year | ss), 
-    data = lmer_data, 
-    REML = TRUE
-  )
-summary(full_mod)
-performance(full_mod)
-check_model(full_mod)
-
-# Visualizing results
-full_mod_aug <- augment(full_mod)
-
-ggplot(full_mod_aug %>% filter(ss < 94), aes(year, pelvic_pain , group = ss)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, color = "black") +
-  geom_line(aes(y = .fitted), linetype = 2) +
-  facet_wrap(~ss)
-
-#####################################################
-#                                                   #
-# computing new z-scores based on baseline m and sd #
-#                                                   #
-#####################################################
-
-# re-computing the z-scores
+# computing the z-scores
 year_0 <- pelvic_pain_data_pca_ss %>% filter(complete.cases(.), year == 0)
 
 # Mean & SD at Year 0 for urination pain
@@ -313,7 +77,7 @@ sd_bowel <- sd(year_0$bowel_mov_pain_last_week)
 m_mens_nonmens <- mean(year_0$mens_nonmens_pain_week)
 sd_mens_nonmens <- sd(year_0$mens_nonmens_pain_week)
 
-# computes new z scores, which scales the other measures by m and sd of BASELINE
+# computes z scores, which scales the other measures by m and sd of BASELINE
 # the combined z score is "pelvic_pain"
 pelvic_pain_data_pca_ss_new_z <- 
   pelvic_pain_data_pca_ss %>% 
@@ -338,6 +102,7 @@ ggplot(
   geom_density()
 
 # longitudinal plot 1
+pd <- position_dodge(width = .1)
 ggplot(pelvic_pain_data_pca_ss_new_z, aes(year, pelvic_pain)) +
   geom_point(position = pd, alpha = 1/3, aes(group = ss)) +
   geom_path(position = pd, alpha = 1/3, aes(group = ss)) +
@@ -355,6 +120,85 @@ ggplot(pelvic_pain_data_pca_ss_new_z, aes(year, pelvic_pain)) +
   ) +
   coord_cartesian(ylim = c(-5, 15))
 
+# Longitudinal plot 3 (with groups)
+# calculates groups here
+baseline_measures <- 
+  complete_extra_annual_data %>% filter(year == 0) %>%
+  left_join(., ss_codes %>% select(ss, group), by = "ss") %>%
+  mutate(
+    dys_status = ifelse(cramp_pain_no_nsaid >= 50, "DYS", "NODYS"),
+    cpp_status = case_when(
+      group %in% c("PBS", "PAIN") ~ "CPP",
+      group %in% c("HC", "DYSB", "DYS") ~ "NOCPP",
+      TRUE ~ as.character(group)
+    )
+  ) %>%
+  relocate(c(group, dys_status, cpp_status), .before = year)
+
+# combines groups with plot data
+long_data_with_groups <- 
+  pelvic_pain_data_pca_ss_new_z %>%
+  left_join(
+    ., 
+    select(
+      baseline_measures, 
+      ss, 
+      group, 
+      dys_status, 
+      cpp_status, 
+      bs_cramp_pain_no_nsaid = cramp_pain_no_nsaid
+    ),
+    by = "ss"
+  ) 
+
+# longitudinal plot 3
+# DYS STATUS
+ggplot(long_data_with_groups, aes(year, pelvic_pain)) +
+  geom_point(position = pd, alpha = 1/3, aes(group = ss, color = dys_status)) +
+  geom_line(
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    alpha = 1/3,
+    aes(group = ss, color = dys_status)
+  ) +
+  geom_line(
+    size = 1.5,
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    aes(group = dys_status, color = dys_status)
+  ) +
+  coord_cartesian(ylim = c(-5, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  theme_classic()
+
+# CPP STATUS
+ggplot(long_data_with_groups, aes(year, pelvic_pain)) +
+  geom_point(position = pd, alpha = 1/3, aes(group = ss, color = cpp_status)) +
+  geom_line(
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    alpha = 1/3,
+    aes(group = ss, color = cpp_status)
+  ) +
+  geom_line(
+    size = 1.5,
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    aes(group = cpp_status, color = cpp_status)
+  ) +
+  coord_cartesian(ylim = c(-5, 15)) +
+  scale_color_brewer(palette = "Set1") +
+  theme_classic()
+
+# factor scores for the rows (subjects)
+fi <- 
+  as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
+  mutate(ss = as.numeric(ss))
+
 # new data with corrected z
 fi_pp_newz <- 
   pelvic_pain_data_pca_ss_new_z %>% 
@@ -367,7 +211,6 @@ fi_pp_newz <-
 q1_mod_newz <- 
   lm(pelvic_pain ~ 1 + V1 + V2 + V3, data = fi_pp_newz %>% filter(year == 0))
 summary(q1_mod_newz)     # regression results
-summary(q1_mod) # is exactly the same as above, which is expected
 performance(q1_mod_newz) # looks at performance metrics
 check_model(q1_mod_newz) # checks assumptions
 
@@ -382,9 +225,9 @@ max_mod_newz <-
     data = lmer_data_newz, 
     REML = TRUE
   )
-summary(max_mod)
-performance(max_mod)
-check_model(max_mod)
+summary(max_mod_newz)
+performance(max_mod_newz)
+check_model(max_mod_newz)
 
 min_mod_newz <- 
   lmer(
@@ -428,16 +271,22 @@ my_cowplot <-
     theme_minimal()  
   }
 
-my_cowplot(1:25)
-my_cowplot(26:50)
-my_cowplot(51:75)
-my_cowplot(76:100)
-my_cowplot(101:125)
-my_cowplot(126:150)
-my_cowplot(151:171)
+# Uncommnet to see these plots
+# my_cowplot(1:25)
+# my_cowplot(26:50)
+# my_cowplot(51:75)
+# my_cowplot(76:100)
+# my_cowplot(101:125)
+# my_cowplot(126:150)
+# my_cowplot(151:171)
 
+##########################
+#                        #
+# Examining Interactions #
+#                        #
+##########################
 
-# V1
+# Principal component 1
 # simple slopes
 v1_simp_slopes <- 
   interact_plot(
@@ -465,7 +314,6 @@ sim_slopes(full_mod_newz, pred = year, modx = V1, jnplot = TRUE)
 # V3 
 interact_plot(full_mod_newz, pred = year, modx = V3, plot.points = TRUE, interval = TRUE)
 sim_slopes(full_mod_newz, pred = year, modx = V3, jnplot = TRUE)
-
 
 # TRYING LESS TIME POINTS
 # Data for lmer
@@ -538,4 +386,129 @@ one_year_follow_wide <-
 
 one_year_mod <- lm(pp_2 ~ 1 + pp_0 + V1 + V2 + V3, data = one_year_follow_wide)
 summary(one_year_mod)
+
+
+# Examining average VAS instead of z-score ----
+
+pelvic_pain_data_pca_ss %>% filter(!complete.cases(.))
+
+# computes average here
+pelvic_pain_avg <- 
+  pelvic_pain_data_pca_ss %>%
+  select(-timestamp, -days_from_baseline) %>%
+  filter(complete.cases(.)) %>% # removes those subjects with missing data
+  pivot_longer(c(-ss, -year)) %>%
+  group_by(ss, year) %>%
+  summarise(pelvic_pain = mean(value), n = n()) %>%
+  ungroup()
+
+pelvic_pain_avg %>% filter(n != 3) # all have three observations/timepoint
+pelvic_pain_avg %>% filter(is.na(pelvic_pain)) # no missing here
+
+# longitudinal plot
+ggplot(pelvic_pain_avg, aes(year, pelvic_pain)) +
+  geom_point(alpha = 1/3, position = pj) +
+  geom_line(
+    stat ="smooth", 
+    method = "lm", 
+    formula = y ~ x,
+    alpha = 1/3,
+    aes(group = ss),
+    color = "black"
+  ) +
+  coord_cartesian(ylim = c(0, 100)) +
+  geom_smooth(method = "lm", se = TRUE, color = rdgy_pal[3]) +
+  theme_classic()
+
+# combines with PCA factors
+pelvic_pain_avg_fi <- pelvic_pain_avg %>% left_join(., fi, by = "ss")
+
+# maximal model
+pp_avg_max_mod <- 
+  lmer(
+    pelvic_pain ~ 1 + year + (1 + year | ss), 
+    data = pelvic_pain_avg_fi, 
+    REML = TRUE
+  )
+summary(pp_avg_max_mod) # model summary
+
+# minimal model
+pp_avg_min_mod <- 
+  lmer(
+    pelvic_pain ~ 1 + year + (1 | ss), 
+    data = pelvic_pain_avg_fi, 
+    REML = TRUE
+  )
+summary(pp_avg_min_mod) # model summary
+anova(pp_avg_min_mod, pp_avg_max_mod) # model fit improved with random slopes
+
+# full model
+pelvic_pain_avg_mod <- 
+  lmer(
+  pelvic_pain ~ 1 + year + year*V1 + year*V2 + year*V3 + (1 + year | ss), 
+  data = pelvic_pain_avg_fi, 
+  REML = TRUE
+)
+
+summary(pelvic_pain_avg_mod) # model summary
+performance(pelvic_pain_avg_mod) # model performance
+check_model(pelvic_pain_avg_mod) # checks assumptions
+anova(pp_avg_max_mod, pelvic_pain_avg_mod) # model fit improved with PCs
+
+# plots the observed and fitted slopes for each subject
+this_aug <- augment(pelvic_pain_avg_mod)
+min(this_aug$pelvic_pain)
+max(this_aug$pelvic_pain)
+these_ss <- unique(this_aug$ss)
+
+# my own function to plot fitted and observed slopes
+my_cowplot <-
+  function(x = 1:25){
+    ggplot(this_aug %>% filter(ss %in% these_ss[x]), aes(year, pelvic_pain)) +
+      geom_point() +
+      geom_smooth(method = "lm", se = FALSE, color = "black") +
+      geom_line(aes(y = .fitted), linetype = 3, size = 1, color = rdgy_pal[3]) +
+      facet_wrap(~ss) +
+      coord_cartesian(ylim = c(0, 100)) +
+      theme_minimal()  
+  }
+
+# Uncommnet to see these plots
+# my_cowplot(1:25)
+# my_cowplot(26:50)
+# my_cowplot(51:75)
+# my_cowplot(76:100)
+# my_cowplot(101:125)
+# my_cowplot(126:150)
+# my_cowplot(151:171)
+
+# Modeling the simple outcome at year 2 ----
+# gets data into wide with fi
+pelvic_pain_avg_fi_wide <- 
+  pelvic_pain_avg %>% 
+  pivot_wider(
+    id_cols = ss, 
+    names_from = year, 
+    values_from = pelvic_pain,
+    names_prefix = "year_"
+    ) %>%
+  left_join(., fi, by = "ss")
+
+# mods
+mod1 <- lm(year_2 ~ 1 + year_0, data = pelvic_pain_avg_fi_wide)
+summary(mod1)
+
+mod2 <- lm(year_2 ~ 1 + year_0 + V1 + V3, data = pelvic_pain_avg_fi_wide)
+summary(mod2)
+
+anova(mod1, mod2)
+
+library(lmSupport)
+modelCompare(mod1, mod2)
+
+pelvic_pain_avg_fi_wide %>% filter(complete.cases(year_2))
+
+
+
+
 
