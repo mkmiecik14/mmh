@@ -387,8 +387,11 @@ one_year_follow_wide <-
 one_year_mod <- lm(pp_2 ~ 1 + pp_0 + V1 + V2 + V3, data = one_year_follow_wide)
 summary(one_year_mod)
 
-
-# Examining average VAS instead of z-score ----
+###############
+#             #
+# AVERAGE VAS #
+#             #
+###############
 
 pelvic_pain_data_pca_ss %>% filter(!complete.cases(.))
 
@@ -445,7 +448,7 @@ anova(pp_avg_min_mod, pp_avg_max_mod) # model fit improved with random slopes
 # full model
 pelvic_pain_avg_mod <- 
   lmer(
-  pelvic_pain ~ 1 + year + year*V1 + year*V2 + year*V3 + (1 + year | ss), 
+  pelvic_pain ~ 1 + year + year*V1 + year*V3 + (1 + year | ss), 
   data = pelvic_pain_avg_fi, 
   REML = TRUE
 )
@@ -454,6 +457,16 @@ summary(pelvic_pain_avg_mod) # model summary
 performance(pelvic_pain_avg_mod) # model performance
 check_model(pelvic_pain_avg_mod) # checks assumptions
 anova(pp_avg_max_mod, pelvic_pain_avg_mod) # model fit improved with PCs
+
+# Following up interactions
+# Principal component 1
+# Johnson-Neyman plot
+interact_plot(pelvic_pain_avg_mod, pred = year, modx = V1, plot.points = TRUE, interval = TRUE)
+sim_slopes(pelvic_pain_avg_mod, pred = year, modx = V1, jnplot = TRUE)
+
+# Principal component 3 
+interact_plot(pelvic_pain_avg_mod, pred = year, modx = V3, plot.points = TRUE, interval = TRUE)
+sim_slopes(pelvic_pain_avg_mod, pred = year, modx = V3, jnplot = TRUE)
 
 # plots the observed and fitted slopes for each subject
 this_aug <- augment(pelvic_pain_avg_mod)
@@ -503,8 +516,8 @@ summary(mod2)
 
 anova(mod1, mod2)
 
-library(lmSupport)
-modelCompare(mod1, mod2)
+
+modelCompare(mod1, mod2) # uses lmSupport pkg
 
 pelvic_pain_avg_fi_wide %>% filter(complete.cases(year_2))
 

@@ -24,6 +24,9 @@ library(lmerTest)
 # Probing interactions
 library(interactions)
 
+# Model comparison
+library(lmSupport)
+
 # Plotting tools ----
 # use geom_flat_violin()
 # see: https://neuroconscience.wordpress.com/2018/03/15/introducing-raincloud-plots/
@@ -37,6 +40,9 @@ library(RColorBrewer)
 rdgy_pal <- brewer.pal(11, "RdGy")
 library(wesanderson)
 library(ggsci)
+
+# Numerical
+options(scipen = 999) # will prevent scientific notation
 
 
 
