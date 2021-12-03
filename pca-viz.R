@@ -22,6 +22,9 @@ scree_data <-
     p = pca_res$Inference.Data$components$p.vals,
     sig = ifelse(p < .001, "sig", "ns")
     )
+# saving out data for manuscript
+# uncomment to run
+# write_csv(scree_data, file = "../output/scree-data.csv") # saves results
 
 # SCREE PLOT
 ggplot(scree_data, aes(comp, perc, color = sig)) +
