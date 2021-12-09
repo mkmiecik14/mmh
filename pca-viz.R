@@ -461,6 +461,35 @@ ggplot(
   theme_minimal() +
   theme(legend.position = "none")
 
+# Correlations plots for manuscript
+comps <- c("V1", "V2", "V3")
+cor_plot <- 
+  ggplot(
+    cor_ci %>% filter(var1 %in% comps, var2 %nin% comps), 
+    aes(r, var2, color = sig)
+    ) +
+    geom_point(size = 2) +
+    scale_color_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
+    geom_errorbarh(aes(xmin = lower, xmax = upper), height = .2) +
+    coord_cartesian(xlim = c(-1, 1)) +
+    geom_vline(xintercept = 0, linetype = 2) +
+    scale_x_continuous(breaks = seq(-1, 1, .5), minor_breaks = NULL) + 
+    labs(x = "Correlation (r)", y = "Variable 2", caption = "95% CI error bars.") +
+    facet_wrap(~var1) +
+    theme_minimal() +
+    theme(legend.position = "none")
+cor_plot # to view
+
+# Saves out for manuscript
+# uncomment to save out
+# ggsave(
+#   plot = cor_plot, 
+#   filename = "../output/cor-plot.svg", 
+#   width = 6.5, 
+#   height = 5, 
+#   units = "in"
+#   )
+
 
 
 
