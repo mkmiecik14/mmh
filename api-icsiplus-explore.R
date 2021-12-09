@@ -236,8 +236,190 @@ summary(mod2)
 # Model comparison
 anova(mod1, mod2) # ANOVA
 modelCompare(mod1, mod2) # delta R2 (uses lmSupport pkg)
+# 200-71
 
-200-71
+# mods - mean centered
+mod1_mc <- lm(year_2 ~ 1 + scale(year_0, scale = FALSE), data = pelvic_pain_avg_fi_wide)
+summary(mod1_mc)
+
+mod2_mc <- 
+  lm(
+    year_2 ~ 
+      1 + 
+      scale(year_0, scale = FALSE) + 
+      scale(V1, scale = FALSE) + 
+      scale(V3, scale = FALSE), 
+    data = pelvic_pain_avg_fi_wide
+  )
+summary(mod2_mc)
+
+# Model comparison
+anova(mod1_mc, mod2_mc) # ANOVA
+modelCompare(mod1_mc, mod2_mc) # delta R2 (uses lmSupport pkg)
+
+# FULL MODEL ESTIMATES
+mod1_mc_ests <- 
+  tidy(mod1_mc, conf.int = TRUE, conf.level = .95) %>%
+  mutate(step = 1, term = c("Intercept", "Year0")) %>%
+  relocate(step)
+
+mod2_mc_ests <- 
+  tidy(mod2_mc, conf.int = TRUE, conf.level = .95) %>%
+  mutate(step = 2, term = c("Intercept", "Year0", "V1", "V3")) %>%
+  relocate(step)
+
+# combines model estimates
+mod12_mc_ests <- bind_rows(mod1_mc_ests, mod2_mc_ests)
+
+# EXTRACTING ALL MODEL SPECIFICS
+mod1_mc_int <- 
+  lm(year_2 ~ 0 + scale(year_0, scale = FALSE), data = pelvic_pain_avg_fi_wide)
+
+mod1_mc_year0 <- 
+  lm(year_2 ~ 1, data = pelvic_pain_avg_fi_wide)
+
+mod2_mc_int<- 
+  lm(
+  year_2 ~ 
+    0 + 
+    scale(year_0, scale = FALSE) + 
+    scale(V1, scale = FALSE) + 
+    scale(V3, scale = FALSE), 
+  data = pelvic_pain_avg_fi_wide
+)
+
+mod2_mc_year0 <- 
+  lm(
+    year_2 ~ 
+      1 + 
+      #scale(year_0, scale = FALSE) + 
+      scale(V1, scale = FALSE) + 
+      scale(V3, scale = FALSE), 
+    data = pelvic_pain_avg_fi_wide
+  )
+
+mod2_mc_v1 <- 
+  lm(
+    year_2 ~ 
+      1 + 
+      scale(year_0, scale = FALSE) + 
+      #scale(V1, scale = FALSE) + 
+      scale(V3, scale = FALSE), 
+    data = pelvic_pain_avg_fi_wide
+  )
+
+mod2_mc_v3 <- 
+  lm(
+    year_2 ~ 
+      1 + 
+      scale(year_0, scale = FALSE) + 
+      scale(V1, scale = FALSE), 
+      #scale(V3, scale = FALSE), 
+    data = pelvic_pain_avg_fi_wide
+  )
+
+# Sums of squares, PRE, MSE, ETC.
+# STEP 1 INTERCEPT
+ss_1_int <- 
+  as.data.frame(t(unlist(modelCompare(ModelC = mod1_mc_int, ModelA = mod1_mc)))) %>%
+  mutate(
+    SS = sseC - sseA, 
+    MS = SS/nDF, 
+    MSE = sseA/dDF,
+    step = 1,
+    term = "Intercept"
+    )
+# STEP 1 YEAR0 SLOPE
+ss_1_year0 <-
+  as.data.frame(t(unlist(modelCompare(ModelC = mod1_mc_year0, ModelA = mod1_mc)))) %>%
+  mutate(
+    SS = sseC - sseA, 
+    MS = SS/nDF, 
+    MSE = sseA/dDF,
+    step = 1,
+    term = "Year0"
+  )
+# STEP 2 INTERCEPT
+ss_2_int <- 
+  as.data.frame(t(unlist(modelCompare(ModelC = mod2_mc_int, ModelA = mod2_mc)))) %>%
+  mutate(
+    SS = sseC - sseA, 
+    MS = SS/nDF, 
+    MSE = sseA/dDF,
+    step = 2,
+    term = "Intercept"
+  )
+# STEP 2 Year0 SLOPE
+ss_2_year0 <- 
+  as.data.frame(t(unlist(modelCompare(ModelC = mod2_mc_year0, ModelA = mod2_mc)))) %>%
+  mutate(
+    SS = sseC - sseA, 
+    MS = SS/nDF, 
+    MSE = sseA/dDF,
+    step = 2,
+    term = "Year0"
+  )
+# STEP 2 V1 SLOPE
+ss_2_v1 <- 
+  as.data.frame(t(unlist(modelCompare(ModelC = mod2_mc_v1, ModelA = mod2_mc)))) %>%
+  mutate(
+    SS = sseC - sseA, 
+    MS = SS/nDF, 
+    MSE = sseA/dDF,
+    step = 2,
+    term = "V1"
+  )
+# STEP 2 V3 SLOPE
+ss_2_v3 <- 
+  as.data.frame(t(unlist(modelCompare(ModelC = mod2_mc_v3, ModelA = mod2_mc)))) %>%
+  mutate(
+    SS = sseC - sseA, 
+    MS = SS/nDF, 
+    MSE = sseA/dDF,
+    step = 2,
+    term = "V3"
+  )
+
+# COMBINES TOGETHER
+mod12_ss <-
+  bind_rows(ss_1_int, ss_1_year0, ss_2_int, ss_2_year0, ss_2_v1, ss_2_v3) %>%
+  relocate(step, term)
+
+# combines with model estimates
+hier_reg_res <-
+  left_join(mod12_mc_ests, mod12_ss, by = c("step", "term")) %>%
+  # further cleaning
+  select(
+    step,
+    term,
+    b = estimate,
+    LL = conf.low,
+    UL = conf.high,
+    SE = std.error,
+    SS,
+    MSE,
+    F = Fstat,
+    p = p.value,
+    partialeta2 = PRE,
+    nDF,
+    dDF
+  )
+
+# FOR PUBLICATION TABLE
+#write_csv(hier_reg_res, file = "../output/hier-reg-res.csv")
+
+
+# FROM ANOTHER SCRIPT ON HOW TO EXTRACT SS
+# for publication table
+# calculating sums of squares
+# lvl2_mod_spec_SS <- 
+#   lvl2_mod_spec %>%
+#   ungroup() %>%
+#   group_by(elec, term) %>%
+#   do(as.data.frame(t(unlist(modelCompare(.$modC[[1]], .$modA[[1]]))))) %>%
+#   ungroup() %>%
+#   rename(source = term) # helps with join
+
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 
 ######################
