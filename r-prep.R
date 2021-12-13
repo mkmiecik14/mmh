@@ -26,6 +26,7 @@ library(interactions)
 
 # Model comparison
 library(lmSupport)
+library(effectsize) # effect sizes
 
 # Plotting tools ----
 # use geom_flat_violin()

@@ -409,16 +409,158 @@ hier_reg_res <-
 #write_csv(hier_reg_res, file = "../output/hier-reg-res.csv")
 
 
-# FROM ANOTHER SCRIPT ON HOW TO EXTRACT SS
-# for publication table
-# calculating sums of squares
-# lvl2_mod_spec_SS <- 
-#   lvl2_mod_spec %>%
-#   ungroup() %>%
-#   group_by(elec, term) %>%
-#   do(as.data.frame(t(unlist(modelCompare(.$modC[[1]], .$modA[[1]]))))) %>%
-#   ungroup() %>%
-#   rename(source = term) # helps with join
+# Run the models at each year and look at differences in R^2 ----
+# mean centers columns
+pelvic_pain_avg_fi_wide_mc <- 
+  pelvic_pain_avg_fi_wide %>% 
+  mutate(across(.cols = year_0:V40, .fns = ~as.numeric(scale(.x, scale=FALSE))))
+
+pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_1))
+200-57
+
+pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_2))
+200-71
+
+pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_3))
+200-103
+
+pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_4))
+200-113
+
+
+pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_5))
+200-137
+
+
+
+
+
+
+
+
+  # Runs models FIX THESE TO INCLUDE MC
+mod_y1 <- lm(year_1 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
+mod_y2 <- lm(year_2 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
+mod_y3 <- lm(year_3 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
+mod_y4 <- lm(year_4 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
+mod_y5 <- lm(year_5 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
+
+# models in a list
+mods <- list(mod_y1, mod_y2, mod_y3, mod_y4, mod_y5)
+
+# computes the partial eta squareds with CI
+mods_peta2 <-
+  mods %>%
+  map(
+    ~eta_squared(
+    .x, 
+    partial = TRUE, 
+    generalized = FALSE, 
+    ci = .95, 
+    alternative = "two.sided",
+    include_intercept = TRUE,
+    ss_function = car::Anova(mod_y1, type = 3)
+  )
+  ) %>%
+  map_dfr(~as_tibble(.x), .id = "dv_year") %>%
+  select(-CI) %>%
+  rename(Eta2_partial_CI_low = CI_low, Eta2_partial_CI_high = CI_high)
+
+# computes model estimates
+mods_ests <- 
+  mods %>% 
+  map_dfr(~broom::tidy(.x), .id = "dv_year") %>% 
+  rename(Parameter = term) # better for join
+
+# computes standardized regression coefficients with CI
+mods_beta <- 
+  mods %>% 
+  map_dfr(~as_tibble(standardize_parameters(.x)), .id = "dv_year") %>%
+  select(-CI) %>%
+  rename(beta = Std_Coefficient, beta_CI_low = CI_low, beta_CI_high = CI_high)
+
+# calculates the sums of squares
+mods_ss <- 
+  mods %>%
+  map_dfr(~as_tibble(anova(.x), rownames = "Parameter"), .id = "dv_year") %>%
+  rename(dfn = Df, SS = `Sum Sq`, MS = `Mean Sq`, F = `F value`, p = `Pr(>F)`)
+
+# reorganizes for the residuals (error)
+mods_ss_resids <- 
+  mods_ss %>% 
+  filter(Parameter == "Residuals") %>%
+  rename(SSE = SS, MSE = MS, dfd = dfn) %>%
+  select(-F, -p, -Parameter)
+
+# includes correct SS with residuals
+mods_ss_final <- 
+  mods_ss %>% 
+  filter(Parameter != "Residuals") %>% 
+  left_join(., mods_ss_resids, by = "dv_year")
+
+
+
+# combines into one big table
+mods_res <-
+  mods_ests %>% 
+  left_join(., mods_beta, by = c("dv_year", "Parameter")) %>%
+  left_join(., mods_peta2, by = c("dv_year", "Parameter")) %>%
+  left_join(., mods_ss_final, by = c("dv_year", "Parameter")) %>%
+  mutate(Parameter = gsub("[\\(\\)]", "", Parameter)) %>%
+  mutate(sig = p.value < .05)
+
+# PARTIAL ETA SQUARED PLOT
+pd <- position_dodge(width = .3)
+peta2_plot <- 
+  ggplot(
+  mods_res %>% filter(Parameter != "Intercept"), 
+  aes(dv_year, Eta2_partial, group = Parameter, color = Parameter)
+  ) +
+  geom_point(aes(shape = sig), position = pd, size = 2) +
+  geom_errorbar(
+    aes(ymin = Eta2_partial_CI_low, ymax = Eta2_partial_CI_high), 
+    width = .2,
+    position = pd
+    ) +
+  geom_line(position = pd) +
+  scale_shape_manual(values = c(1, 16)) +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5, 6)]) +
+  labs(
+    x = "Pelvic Pain Outcome Year", 
+    y = "Partial Eta^2", 
+    caption = "95% CI error bars."
+    ) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+# BETA PLOT
+beta_plot <- 
+  ggplot(
+  mods_res %>% filter(Parameter != "Intercept"), #  
+  aes(dv_year, beta, group = Parameter, color = Parameter)
+) +
+  geom_point(aes(shape = sig), position = pd, size = 2) +
+  geom_errorbar(
+    aes(ymin = beta_CI_low, ymax = beta_CI_high), 
+    width = .2,
+    position = pd
+  ) +
+  geom_line(position = pd) +
+  scale_shape_manual(values = c(1, 16)) +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5, 6, 7)]) +
+  labs(
+    x = "Pelvic Pain Outcome Year", 
+    y = "Beta", 
+    caption = "95% CI error bars."
+  ) +
+  coord_cartesian(ylim = c(-.5, .75)) +
+  geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+peta2_plot | beta_plot
+
+
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 
