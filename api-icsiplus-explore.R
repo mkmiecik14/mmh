@@ -412,54 +412,37 @@ hier_reg_res <-
 # Run the models at each year and look at differences in R^2 ----
 # mean centers columns
 pelvic_pain_avg_fi_wide_mc <- 
-  pelvic_pain_avg_fi_wide %>% 
-  mutate(across(.cols = year_0:V40, .fns = ~as.numeric(scale(.x, scale=FALSE))))
+  pelvic_pain_avg_fi_wide %>%
+  # mean centers baseline PP (year_0) and all the components
+  mutate(across(.cols = c(year_0, V1:V40), .fns = ~as.numeric(scale(.x, scale=FALSE))))
 
-pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_1))
-200-57
-
-pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_2))
-200-71
-
-pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_3))
-200-103
-
-pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_4))
-200-113
-
-
-pelvic_pain_avg_fi_wide_mc %>% filter(is.na(year_5))
-200-137
-
-
-
-
-
-
-
-
-  # Runs models FIX THESE TO INCLUDE MC
-mod_y1 <- lm(year_1 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
-mod_y2 <- lm(year_2 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
-mod_y3 <- lm(year_3 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
-mod_y4 <- lm(year_4 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
-mod_y5 <- lm(year_5 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide)
+# Runs models FIX THESE TO INCLUDE MC
+mod_y1 <- lm(year_1 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
+mod_y2 <- lm(year_2 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
+mod_y3 <- lm(year_3 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
+mod_y4 <- lm(year_4 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
+mod_y5 <- lm(year_5 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 
 # models in a list
 mods <- list(mod_y1, mod_y2, mod_y3, mod_y4, mod_y5)
+
+# sample sizes
+mods %>%
+  map("model") %>%
+  map_dfr(~tibble(n = nrow(.x)), .id = "mod")
 
 # computes the partial eta squareds with CI
 mods_peta2 <-
   mods %>%
   map(
     ~eta_squared(
-    .x, 
+    .x,
     partial = TRUE, 
     generalized = FALSE, 
     ci = .95, 
     alternative = "two.sided",
-    include_intercept = TRUE,
-    ss_function = car::Anova(mod_y1, type = 3)
+    ss_function = car::Anova(.x, type = 2),
+    include_intercept = TRUE
   )
   ) %>%
   map_dfr(~as_tibble(.x), .id = "dv_year") %>%
@@ -482,14 +465,15 @@ mods_beta <-
 # calculates the sums of squares
 mods_ss <- 
   mods %>%
-  map_dfr(~as_tibble(anova(.x), rownames = "Parameter"), .id = "dv_year") %>%
-  rename(dfn = Df, SS = `Sum Sq`, MS = `Mean Sq`, F = `F value`, p = `Pr(>F)`)
+  map_dfr(~as_tibble(car::Anova(.x, type = 2), rownames = "Parameter"), .id = "dv_year") %>%
+  rename(dfn = Df, SS = `Sum Sq`, F = `F value`, p = `Pr(>F)`)
 
 # reorganizes for the residuals (error)
 mods_ss_resids <- 
   mods_ss %>% 
   filter(Parameter == "Residuals") %>%
-  rename(SSE = SS, MSE = MS, dfd = dfn) %>%
+  rename(SSE = SS, dfd = dfn) %>%
+  mutate(MSE = SSE / dfd) %>%
   select(-F, -p, -Parameter)
 
 # includes correct SS with residuals
@@ -497,8 +481,6 @@ mods_ss_final <-
   mods_ss %>% 
   filter(Parameter != "Residuals") %>% 
   left_join(., mods_ss_resids, by = "dv_year")
-
-
 
 # combines into one big table
 mods_res <-
@@ -513,7 +495,7 @@ mods_res <-
 pd <- position_dodge(width = .3)
 peta2_plot <- 
   ggplot(
-  mods_res %>% filter(Parameter != "Intercept"), 
+  mods_res %>% filter(Parameter != "Intercept", dv_year < 5), 
   aes(dv_year, Eta2_partial, group = Parameter, color = Parameter)
   ) +
   geom_point(aes(shape = sig), position = pd, size = 2) +
@@ -531,12 +513,13 @@ peta2_plot <-
     caption = "95% CI error bars."
     ) +
   theme_classic() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
+peta2_plot #plots
 
 # BETA PLOT
 beta_plot <- 
   ggplot(
-  mods_res %>% filter(Parameter != "Intercept"), #  
+  mods_res %>% filter(Parameter != "Intercept", dv_year < 5), #  
   aes(dv_year, beta, group = Parameter, color = Parameter)
 ) +
   geom_point(aes(shape = sig), position = pd, size = 2) +
@@ -557,8 +540,44 @@ beta_plot <-
   geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
   theme_classic() +
   theme(legend.position = "bottom")
+beta_plot #plots
 
-peta2_plot | beta_plot
+# plots side by side
+reg_res_plot <- peta2_plot | beta_plot
+reg_res_plot
+
+# saves out for manuscript
+# uncomment out to save
+# ggsave(
+#   filename = "../output/reg-res-plot.svg",
+#   plot = reg_res_plot,
+#   width = 5,
+#   height = 4.5,
+#   units = "in"
+#   )
+
+# Saves regression results out to table for manuscript
+#test <- 
+  mods_res %>%
+  mutate(F_new = statistic^2) %>%
+  select(
+    Year = dv_year,
+    Parameter,
+    b = estimate,
+    SE = std.error,
+    beta,
+    beta_CI_low,
+    beta_CI_high,
+    SS,
+    MSE,
+    F = F_new,
+    dfn,
+    dfd,
+    p = p.value,
+    Eta2_partial,
+    Eta2_partial_CI_low,
+    Eta2_partial_CI_high,
+  )
 
 
 
