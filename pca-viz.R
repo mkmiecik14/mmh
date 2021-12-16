@@ -6,6 +6,41 @@
 
 source("r-prep.R")              # Prepares R workspace
 load("../output/mmh-res.RData") # Loads results
+load("../output/pca-data-all.rda") # Loads PCA data kept and discarded
+
+#########################################
+#                                       #
+# Descriptive Stats of Variables in PCA #
+#                                       #
+#########################################
+
+# descriptive table
+pca_data_desc <- 
+  pca_data_keep %>%
+  # converting reverse coded variables back into regular units
+  mutate(
+    across(
+      .cols = c(starts_with("ppt_N_"), "cpm_lknee", "ts_max"), 
+      .fns = ~.x*-1
+      )
+    ) %>%
+  pivot_longer(cols = -ss) %>%
+  group_by(name) %>%
+  summarise(
+    M = mean(value),
+    LL =  quantile(value, .025),
+    UL =  quantile(value, .975),
+    SD = sd(value),
+    n = n(),
+    SEM = SD/sqrt(n),
+    Min = min(value),
+    Max = max(value)
+  ) %>%
+  ungroup()
+
+# Saves out for manuscript table
+# uncomment to save out
+# write_csv(pca_data_desc, file = "../output/pca-data-desc.csv")
 
 #########
 #       #

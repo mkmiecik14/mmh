@@ -436,12 +436,11 @@ mods_peta2 <-
   mods %>%
   map(
     ~eta_squared(
-    .x,
+    car::Anova(.x, type = 3),
     partial = TRUE, 
     generalized = FALSE, 
     ci = .95, 
     alternative = "two.sided",
-    ss_function = car::Anova(.x, type = 2),
     include_intercept = TRUE
   )
   ) %>%
@@ -465,7 +464,7 @@ mods_beta <-
 # calculates the sums of squares
 mods_ss <- 
   mods %>%
-  map_dfr(~as_tibble(car::Anova(.x, type = 2), rownames = "Parameter"), .id = "dv_year") %>%
+  map_dfr(~as_tibble(car::Anova(.x, type = 3), rownames = "Parameter"), .id = "dv_year") %>%
   rename(dfn = Df, SS = `Sum Sq`, F = `F value`, p = `Pr(>F)`)
 
 # reorganizes for the residuals (error)
@@ -549,7 +548,7 @@ reg_res_plot
 # saves out for manuscript
 # uncomment out to save
 # ggsave(
-#   filename = "../output/reg-res-plot.svg",
+#   filename = "../output/reg-res-plot-v2.svg",
 #   plot = reg_res_plot,
 #   width = 5,
 #   height = 4.5,
@@ -557,7 +556,7 @@ reg_res_plot
 #   )
 
 # Saves regression results out to table for manuscript
-#test <- 
+reg_res_table <- 
   mods_res %>%
   mutate(F_new = statistic^2) %>%
   select(
@@ -577,9 +576,20 @@ reg_res_plot
     Eta2_partial,
     Eta2_partial_CI_low,
     Eta2_partial_CI_high,
+  ) %>%
+  mutate(
+    Parameter = case_when(
+      Parameter == "year_0" ~ "Baseline Pelvic Pain",
+      Parameter == "V1" ~ "PC 1",
+      Parameter == "V2" ~ "PC 2",
+      Parameter == "V3" ~ "PC 3",
+      TRUE ~ as.character(Parameter)
+    )
   )
 
-
+# saves out table for publication
+# uncomment to save out
+# write_csv(reg_res_table, file = "../output/reg-res-table.csv")
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 

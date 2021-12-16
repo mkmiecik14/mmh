@@ -38,6 +38,12 @@ pca_data <-
 pca_data_discard  <- pca_data %>% select(-coldpain) %>% filter(!complete.cases(.)) # 153 discarded
 pca_data_keep     <- pca_data %>% select(-coldpain) %>% filter(complete.cases(.))  # 200 kept
 
+# Saves out PCA data that was used
+save(
+  list = c("pca_data_discard", "pca_data_keep"), 
+  file = "../output/pca-data-all.rda"
+  )
+
 # Converts PCA data to matrix
 pca_data_mat <- as.matrix(select(pca_data_keep, -ss)) # removes ss id
 rownames(pca_data_mat) <- pca_data_keep$ss # adds rownames of ss id
