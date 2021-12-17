@@ -525,6 +525,65 @@ cor_plot # to view
 #   units = "in"
 #   )
 
+# Descriptive stats on the extra variables
+cor_data_reg <- 
+  extra_data_match %>% 
+  select(-starts_with("ibs"), -mh23a, -starts_with("global")) %>%
+  left_join(., fi %>% select(ss, V1, V2, V3), by = "ss")
+  
+# Computes bootstrapped correlations
+cor_res_reg <-
+  psych::corr.test(
+    cor_data_reg %>% select(-ss),
+    use = "pairwise",
+    method = "pearson", 
+    adjust = "none",
+    ci = TRUE,
+    minlength = 100 # extends the abrreviations
+  )
 
+# Cleans up the confidence interval results
+# Proof that cor plot is the same with z scores
+cor_ci_reg <- 
+  as_tibble(cor_res_reg$ci, rownames = "vars") %>%
+  separate(vars, into = c("var1", "var2"), sep = "-") %>%
+  mutate(sig = ifelse(p < .05, "sig", "nsig"))
 
+# Correlations plots
+ggplot(
+  cor_ci_reg %>% filter(var2 %in% c("V1", "V2", "V3")), 
+  aes(r, var1, color = sig)
+) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = .2) +
+  coord_cartesian(xlim = c(-1, 1)) +
+  geom_vline(xintercept = 0, linetype = 2) +
+  scale_x_continuous(breaks = seq(-1, 1, .5), minor_breaks = NULL) + 
+  labs(x = "Correlation (r)", y = "Variable 2", caption = "95% CI error bars.") +
+  facet_wrap(~var2) +
+  theme_minimal() +
+  theme(legend.position = "none")
 
+# Descriptive statistics on variables entered into correlations
+cor_data_reg_desc <- 
+  cor_data_reg %>% 
+  select(-V1, -V2, -V3) %>% 
+  pivot_longer(-ss) %>%
+  group_by(name) %>%
+  summarise(
+    M = mean(value, na.rm = TRUE),
+    LL = quantile(value, .025, na.rm = TRUE),
+    UL = quantile(value, .975, na.rm = TRUE),
+    SD = sd(value, na.rm = TRUE),
+    n_start = n(),
+    n_na = sum(is.na(value)),
+    n_final = n_start-n_na, # true n after na's are dropped
+    Min = min(value, na.rm = TRUE),
+    Max = max(value, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# saves out for manuscript table
+# uncomment to save out
+write_csv(cor_data_reg_desc, file = "../output/cor-data-reg-desc.csv")
