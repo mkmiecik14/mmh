@@ -619,9 +619,7 @@ pelvic_pain_avg_sum <-
 
 # for publication table
 # uncomment to save out
-write_csv(pelvic_pain_avg_sum, file = "../output/pelvic-pain-avg-sum.csv")
-
-
+# write_csv(pelvic_pain_avg_sum, file = "../output/pelvic-pain-avg-sum.csv")
 
 # Pelvic Pain Outcome Plot
 this_color <- ghibli_palettes$PonyoMedium[2]
@@ -669,10 +667,6 @@ reg_res_plot_2
 #   height = 4.5,
 #   units = "in"
 #   )
-
-
-
-
 
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
