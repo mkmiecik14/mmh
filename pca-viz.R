@@ -450,6 +450,7 @@ cor_data <-
     V1:V3, # PCs 1-3
     cmsi_3mos_lastyear, cmsi_3mos_lifetime, # cmsi
     mh23, # menstrual pain
+    bsi, # somatic symptoms
     gupi_pain_subscale:gupi_gupi_total, # gupi
     icsi, icpi, # ic
     gph, # global physical health
@@ -518,10 +519,10 @@ cor_plot # to view
 # Saves out for manuscript
 # uncomment to save out
 # ggsave(
-#   plot = cor_plot, 
-#   filename = "../output/cor-plot.svg", 
-#   width = 6.5, 
-#   height = 5, 
+#   plot = cor_plot,
+#   filename = "../output/cor-plot-v2.svg",
+#   width = 6.5,
+#   height = 5,
 #   units = "in"
 #   )
 
@@ -586,4 +587,4 @@ cor_data_reg_desc <-
 
 # saves out for manuscript table
 # uncomment to save out
-write_csv(cor_data_reg_desc, file = "../output/cor-data-reg-desc.csv")
+#write_csv(cor_data_reg_desc, file = "../output/cor-data-reg-desc.csv")
