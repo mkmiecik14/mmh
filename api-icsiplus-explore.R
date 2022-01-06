@@ -507,7 +507,7 @@ peta2_plot <-
   scale_shape_manual(values = c(1, 16)) +
   scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5, 6)]) +
   labs(
-    x = "Pelvic Pain Outcome Year", 
+    x = "Year", 
     y = "Partial Eta^2", 
     caption = "95% CI error bars."
     ) +
@@ -531,7 +531,7 @@ beta_plot <-
   scale_shape_manual(values = c(1, 16)) +
   scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5, 6, 7)]) +
   labs(
-    x = "Pelvic Pain Outcome Year", 
+    x = "Year", 
     y = "Beta", 
     caption = "95% CI error bars."
   ) +
@@ -590,6 +590,90 @@ reg_res_table <-
 # saves out table for publication
 # uncomment to save out
 # write_csv(reg_res_table, file = "../output/reg-res-table.csv")
+
+# Pelvic Pain Outcome Variable Descriptive Stats and Plot ----
+# subject-wise data
+pelvic_pain_avg_ss <- 
+  pelvic_pain_avg_fi_wide %>% 
+  select(ss, starts_with("year_")) %>%
+  pivot_longer(-ss, names_to = "year", values_to = "pelvic_pain") %>%
+  mutate(year = as.numeric(regmatches(year, regexpr("\\d", year))))
+
+# summary
+pelvic_pain_avg_sum <- 
+  pelvic_pain_avg_ss %>%
+  filter(complete.cases(pelvic_pain)) %>%
+  group_by(year) %>%
+  summarise(
+    m = mean(pelvic_pain),
+    med = median(pelvic_pain),
+    sd = sd(pelvic_pain),
+    n = n(),
+    sem = sd/sqrt(n),
+    min = min(pelvic_pain),
+    max = max(pelvic_pain),
+    ll = quantile(pelvic_pain, .025, na.rm = TRUE),
+    ul = quantile(pelvic_pain, .975, na.rm = TRUE)
+    ) %>%
+  ungroup()
+
+# for publication table
+# uncomment to save out
+write_csv(pelvic_pain_avg_sum, file = "../output/pelvic-pain-avg-sum.csv")
+
+
+
+# Pelvic Pain Outcome Plot
+this_color <- ghibli_palettes$PonyoMedium[2]
+pj <- position_jitter(width = .2, height = 0)
+pn <- position_nudge(x = .5)
+
+pp_outcome_plot <- 
+  ggplot(pelvic_pain_avg_sum %>% filter(year < 5), aes(year, m)) +
+  geom_point(
+    data = pelvic_pain_avg_ss %>% filter(year < 5), 
+    aes(y = pelvic_pain),
+    position = pj,
+    shape = 1,
+    alpha = 1/2,
+    color = this_color
+    ) +
+  geom_point(color = this_color, position = pn) +
+  geom_errorbar(
+    aes(ymin = ll, ymax = ul), 
+    width = .2,
+    color = this_color,
+    position = pn
+    ) +
+  geom_line(color = this_color, position = pn) +
+  coord_cartesian(ylim = c(0, 100)) +
+  labs(
+    x = "Year", 
+    y = "Mean Pelvic Pain Outcome (0-100 VAS)", 
+    caption = "95%CI error bars."
+    ) +
+  #scale_color_manual(values = ghibli_palettes$PonyoDark[2]) +
+  theme_classic()
+pp_outcome_plot
+
+# plots side by side
+reg_res_plot_2 <- pp_outcome_plot | peta2_plot | beta_plot
+reg_res_plot_2
+
+# saves out for manuscript
+# uncomment out to save
+# ggsave(
+#   filename = "../output/reg-res-plot-v3.svg",
+#   plot = reg_res_plot_2,
+#   width = 5.5,
+#   height = 4.5,
+#   units = "in"
+#   )
+
+
+
+
+
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
 
