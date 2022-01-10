@@ -62,13 +62,24 @@ scree_data <-
 # write_csv(scree_data, file = "../output/scree-data.csv") # saves results
 
 # SCREE PLOT
-ggplot(scree_data, aes(comp, perc, color = sig)) +
+scree_plot <-
+  ggplot(scree_data, aes(comp, perc, color = sig)) +
   geom_line(linetype = 2, color = rdgy_pal[8]) +
   geom_point() +
   labs(x = "Component", y = "Percentage Variance Explained", caption = "sig = p<.001") +
   scale_color_manual(values = c(rdgy_pal[9], rdgy_pal[3])) +
   theme_classic() +
   theme(legend.position = "bottom")
+scree_plot # prints to screen
+
+# saves out for manuscript 
+# uncomment to save out
+# ggsave(
+#   plot = scree_plot,
+#   filename = "scree-figure-v1.svg",
+#   path = "../output/",
+#   width = 4, height = 3, units = "in"
+# )
 
 
 #########################
@@ -165,7 +176,8 @@ boot_res_long <-
 this_comp <- 1
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
-ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
+comp_1_bsr_plot <-
+  ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   geom_bar(stat = "identity") +
   labs(x = "Bootstrap Ratio", y = "Measure") +
   scale_fill_manual(values = c(rdgy_pal[3])) +
@@ -173,12 +185,14 @@ ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = NULL, limits = c(-9, 9)) +
   theme_minimal() +
   theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
+comp_1_bsr_plot
 
 # COMPONENT 2
 this_comp <- 2
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
-ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
+comp_2_bsr_plot <- 
+  ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   geom_bar(stat = "identity") +
   labs(x = "Bootstrap Ratio", y = "Measure") +
   scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
@@ -186,12 +200,14 @@ ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = TRUE, limits = c(-9, 9)) +
   theme_minimal() +
   theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
+comp_2_bsr_plot
 
 # COMPONENT 3
 this_comp <- 3
 this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
 axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
-ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
+comp_3_bsr_plot <- 
+  ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   geom_bar(stat = "identity") +
   labs(x = "Bootstrap Ratio", y = "Measure") +
   scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
@@ -199,6 +215,10 @@ ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
   scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = TRUE, limits = c(-9, 9)) +
   theme_minimal() +
   theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
+comp_3_bsr_plot
+
+# all three for manuscript
+bsr_plot <- comp_1_bsr_plot + comp_2_bsr_plot + comp_3_bsr_plot
 
 # Combining factor score plots with coloring
 fj_boot_sig <- 

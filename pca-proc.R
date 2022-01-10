@@ -34,6 +34,21 @@ pca_data <-
 # pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 153 discarded
 # pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 200 kept
 
+# Calculates cold_pain descritpive stats for manuscript
+pca_data_keep_cp <- pca_data %>% filter(complete.cases(.))  # 200 kept
+pca_data_keep_cp %>% 
+  select(ss, coldpain) %>% 
+  summarise(
+    M = mean(coldpain, na.rm = TRUE),
+    LL = quantile(coldpain, .025, na.rm = TRUE),
+    UL = quantile(coldpain, .975, na.rm = TRUE),
+    SD = sd(coldpain, na.rm = TRUE),
+    N = n(),
+    Min = min(coldpain, na.rm = TRUE),
+    Max = max(coldpain, na.rm = TRUE)
+  )
+
+
 # removes coldpain as it is redundant with coldpain_resid (the better measure)
 pca_data_discard  <- pca_data %>% select(-coldpain) %>% filter(!complete.cases(.)) # 153 discarded
 pca_data_keep     <- pca_data %>% select(-coldpain) %>% filter(complete.cases(.))  # 200 kept

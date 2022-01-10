@@ -1,7 +1,5 @@
 # mmh
 
-test
-
 Code for data processing and analysis of the Multimodal Hypersensitivity project.
 
 Full details of this project and data can be found on Open Science Framework: [link to appear here]
