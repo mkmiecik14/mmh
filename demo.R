@@ -172,17 +172,21 @@ diagnos_key <-
   )
 
 # diagnoses
-demo_data %>%
+diagnoses_counts <- 
+  demo_data %>%
   select(ss, contains("diagnos")) %>%
   pivot_longer(-ss) %>%
   rename(diagnos = name) %>%
   mutate(
-    diagnos = as.numeric(regmatches(diagnos, regexpr("\\d", diagnos))),
-    value = ifelse(value == 0, NA, value)
+    diagnos = as.numeric(gsub("have_you_ever_been_diagnos___", "", diagnos))
     ) %>%
-  filter(complete.cases(value)) %>%
+  filter(value != 0) %>%
   left_join(., diagnos_key, by = "diagnos") %>%
-  count(label)
+  count(label, diagnos) %>% arrange(diagnos)
+
+# writes for manuscript
+# uncomment to save out
+#write_csv(diagnoses_counts, file = "../output/diagnoses-counts.csv")
 
 # This is what we have for groups
 ss_codes_narrow %>% count(group)
@@ -197,7 +201,17 @@ demo_data %>%
   select(ss, pregnancies, deliveries, vagbirths) %>%
   filter(is.na(pregnancies)) # one person is NA
 
-demo_data %>% 
+parity_data <- 
+  demo_data %>% 
   select(ss, pregnancies, deliveries, vagbirths) %>%
   filter(complete.cases(pregnancies)) %>%
-  count(deliveries)
+  mutate(
+    ever_pregnant = ifelse(pregnancies>0, 1, 0),
+    one_or_more_delivs = ifelse(deliveries>0, 1, 0)
+    )
+
+# n ever pregnant
+parity_data %>% count(ever_pregnant)
+
+# n 1 or more deliveries
+parity_data %>% count(one_or_more_delivs)

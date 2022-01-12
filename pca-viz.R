@@ -219,6 +219,16 @@ comp_3_bsr_plot
 
 # all three for manuscript
 bsr_plot <- comp_1_bsr_plot + comp_2_bsr_plot + comp_3_bsr_plot
+bsr_plot
+# Saves out for manuscript
+# uncomment to save out
+# ggsave(
+#   filename = "../output/bsr-plot.svg",
+#   plot = bsr_plot,
+#   width = 8,
+#   height = 7.5,
+#   units = "in"
+#   )
 
 # Combining factor score plots with coloring
 fj_boot_sig <- 
