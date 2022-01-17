@@ -491,7 +491,7 @@ mods_res <-
   mutate(sig = p.value < .05)
 
 # PARTIAL ETA SQUARED PLOT
-pd <- position_dodge(width = .3)
+pd <- position_dodge(width = .4)
 peta2_plot <- 
   ggplot(
   mods_res %>% filter(Parameter != "Intercept", dv_year < 5), 
@@ -501,9 +501,10 @@ peta2_plot <-
   geom_errorbar(
     aes(ymin = Eta2_partial_CI_low, ymax = Eta2_partial_CI_high), 
     width = .2,
-    position = pd
+    position = pd,
+    alpha = 1/2
     ) +
-  geom_line(position = pd) +
+  geom_line(position = pd, alpha = 1/2) +
   scale_shape_manual(values = c(1, 16)) +
   scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5, 6)]) +
   labs(
@@ -636,14 +637,15 @@ pp_outcome_plot <-
     alpha = 1/2,
     color = this_color
     ) +
-  geom_point(color = this_color, position = pn) +
+  geom_point(color = this_color, position = pn, size = 2) +
   geom_errorbar(
     aes(ymin = ll, ymax = ul), 
     width = .2,
     color = this_color,
-    position = pn
+    position = pn,
+    alpha = 1/2
     ) +
-  geom_line(color = this_color, position = pn) +
+  geom_line(color = this_color, position = pn, alpha = 1/2) +
   coord_cartesian(ylim = c(0, 100)) +
   labs(
     x = "Year", 
@@ -667,6 +669,20 @@ reg_res_plot_2
 #   height = 4.5,
 #   units = "in"
 #   )
+
+reg_res_plot_3 <- pp_outcome_plot | peta2_plot
+reg_res_plot_3
+
+# saves out for manuscript
+# uncomment out to save
+# ggsave(
+#   filename = "../output/reg-res-plot-v4.svg",
+#   plot = reg_res_plot_3,
+#   width = 5.5,
+#   height = 4.5,
+#   units = "in"
+#   )
+
 
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
