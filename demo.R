@@ -215,3 +215,22 @@ parity_data %>% count(ever_pregnant)
 
 # n 1 or more deliveries
 parity_data %>% count(one_or_more_delivs)
+
+
+
+##################################
+#                                #
+# TAKING A LOOK AT ARM 2 OCP USE #
+#                                #
+##################################
+
+# reading in OCP notes/subjects
+ocp_notes <- read_excel(path = "../data/CRAMPP-phase2-deviations-01-06-2022.xlsx")
+
+# 28 participants were initially randomized into OCPs vs. No OCPs
+# however, only 22 were included into the PCA analyses
+ocp_notes %>% filter(crampp_id %in% ss_pca) %>% count(completed)
+ocp_notes %>% filter(crampp_id %in% ss_pca) %>% count(assignment)
+ocp_notes %>% filter(crampp_id %in% ss_pca) %>% count(assignment, completed)
+
+
