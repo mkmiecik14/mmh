@@ -618,3 +618,10 @@ cor_data_reg_desc <-
 # saves out for manuscript table
 # uncomment to save out
 #write_csv(cor_data_reg_desc, file = "../output/cor-data-reg-desc.csv")
+
+# Preparing IBS data for Sarah ----
+ibs_data <- 
+  extra_data_match %>% 
+  left_join(., fi, by = "ss") %>%
+  relocate(ss, group, ibs, ibs_sub, V1, V2, V3)
+#write_csv(ibs_data, file = "../output/ibs-data.csv") # writes out to csv  
