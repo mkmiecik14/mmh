@@ -423,6 +423,22 @@ mod_y3 <- lm(year_3 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_
 mod_y4 <- lm(year_4 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 mod_y5 <- lm(year_5 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 
+
+# Zero order correlations ----
+set.seed(14) # sets seed for reproducible boostrapping
+
+# Computes bootstrapped correlations
+zero_order_cors <-
+  psych::corr.test(
+    pelvic_pain_avg_fi_wide_mc %>% select(year_0, V1, V2, V3),
+    use = "pairwise",
+    method = "pearson", 
+    adjust = "none",
+    ci = TRUE,
+    minlength = 100 # extends the abrreviations
+  )
+zero_order_cors$ci # the results
+
 # models in a list
 mods <- list(mod_y1, mod_y2, mod_y3, mod_y4, mod_y5)
 
