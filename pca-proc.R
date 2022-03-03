@@ -34,7 +34,7 @@ pca_data <-
 # pca_data_discard  <- pca_data %>% filter(!complete.cases(.)) # 153 discarded
 # pca_data_keep     <- pca_data %>% filter(complete.cases(.))  # 200 kept
 
-# Calculates cold_pain descritpive stats for manuscript
+# Calculates cold_pain descriptive stats for manuscript
 pca_data_keep_cp <- pca_data %>% filter(complete.cases(.))  # 200 kept
 pca_data_keep_cp %>% 
   select(ss, coldpain) %>% 
