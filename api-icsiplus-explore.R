@@ -514,21 +514,27 @@ peta2_plot <-
   aes(dv_year, Eta2_partial, group = Parameter, color = Parameter)
   ) +
   geom_point(aes(shape = sig), position = pd, size = 2) +
-  geom_errorbar(
-    aes(ymin = Eta2_partial_CI_low, ymax = Eta2_partial_CI_high), 
-    width = .2,
-    position = pd,
-    alpha = 1/2
-    ) +
+  # geom_errorbar(
+  #   aes(ymin = Eta2_partial_CI_low, ymax = Eta2_partial_CI_high), 
+  #   width = .2,
+  #   position = pd,
+  #   alpha = 1/2
+  #   ) +
   geom_line(position = pd, alpha = 1/2) +
   scale_shape_manual(values = c(1, 16)) +
-  scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5, 6)]) +
+  scale_color_manual(
+    values = c(
+      ghibli_palettes$PonyoMedium[c(1, 3, 5)],
+      ghibli_palettes$PonyoMedium[2]
+      )
+    ) +
   labs(
     x = "Year", 
     y = "Partial Eta^2", 
-    caption = "95% CI error bars."
+    #caption = "95% CI error bars."
     ) +
   theme_classic() +
+  coord_cartesian(ylim = c(0, .25)) +
   theme(legend.position = "none")
 peta2_plot #plots
 
@@ -698,6 +704,466 @@ reg_res_plot_3
 #   height = 4.5,
 #   units = "in"
 #   )
+
+####################
+#                  #
+# Sensory analysis #
+#                  #
+####################
+
+# see script "sensory-analysis.R" for original work
+
+# Calculating pelvic pain outcome variable as an average of:
+# 1) urination_pain_last_week
+# 2) bowel_mov_pain_last_week
+# 3) mens_nonmens_pain_week
+
+# # narrows data
+# pelvic_pain_data <- 
+#   complete_extra_annual_data %>% 
+#   select(
+#     ss, 
+#     year, 
+#     timestamp, 
+#     days_from_baseline, 
+#     urination_pain_last_week, 
+#     bowel_mov_pain_last_week, 
+#     mens_nonmens_pain_week
+#   )
+# 
+# # long-format
+# pelvic_pain_data_long <- 
+#   pelvic_pain_data %>%
+#   select(-timestamp) %>%
+#   pivot_longer(cols = c(-ss, -year, -days_from_baseline))
+# 
+# # narrow down the participants in PCA results
+# # PCA subject numbers
+# pca_ss <- as.numeric(rownames(pca_res$Fixed.Data$ExPosition.Data$fi)) 
+# 
+# # retains only those in PCA
+# pelvic_pain_data_pca_ss <- pelvic_pain_data %>% filter(ss %in% pca_ss)
+# length(unique(pelvic_pain_data_pca_ss$ss)) == length(pca_ss) # same ss
+# 
+# ###############
+# #             #
+# # AVERAGE VAS #
+# #             #
+# ###############
+# 
+# pelvic_pain_data_pca_ss %>% filter(!complete.cases(.))
+# 
+# # computes average here
+# pelvic_pain_avg <- 
+#   pelvic_pain_data_pca_ss %>%
+#   filter(complete.cases(.)) %>% # removes those subjects with missing data
+#   pivot_longer(c(-ss, -year, -timestamp, -days_from_baseline)) %>%
+#   group_by(ss, year, timestamp, days_from_baseline) %>%
+#   summarise(pelvic_pain = mean(value), n = n()) %>%
+#   ungroup()
+# 
+# pelvic_pain_avg %>% filter(n != 3) # all have three observations/timepoint
+# pelvic_pain_avg %>% filter(is.na(pelvic_pain)) # no missing here
+
+##############
+#            #
+# Predictors #
+#            #
+##############
+
+load("../output/pca-data-all.rda") # pca data
+
+# z score each measure that was used in the PCA for easy combination
+#  at this point all measures are pointing in the same direction
+pca_data_z <- 
+  pca_data_keep %>% 
+  mutate(across(-ss, ~as.numeric(scale(.x)))) # computes z scores
+
+# checking work
+apply(pca_data_z, 2, mean) # means should all be zero
+apply(pca_data_z, 2, sd) # sd should all be 1
+
+# creates predictors
+pca_data_z_sum <- 
+  pca_data_z %>% 
+  mutate(
+    supra = aud_mean + aud_slope + vis_mean + vis_slope, # 4
+    bladder = bs_pain + fs_pain + fu_pain + mt_pain + fs_urg + fu_urg + 
+      mt_urg + bladder_sharp + bladder_pressing + bladder_dull + bladder_prickling, # 11
+    qst = after_pain_12 + after_pain_5 + after_pain_6 + after_pain_7 + 
+      after_pain_forehead + after_pain_rhip + after_pain_rknee + 
+      after_pain_rshoulder + coldpain_resid + cpm_lknee + ppt_N_rForehead + 
+      ppt_N_rHip + ppt_N_rKnee + ppt_N_rShoulder + ppt_N_12 + ppt_N_5 + 
+      ppt_N_6 + ppt_N_7 + vag_sharp + vag_pressing + vag_dull + vag_prickling + 
+      ts_mean + ts_slope + ts_max #25
+  )
+
+# widens data for regression analysis
+pelvic_pain_avg_wide <- 
+  pelvic_pain_avg %>%
+  pivot_wider(
+    id_cols = ss, 
+    names_from = year, 
+    names_prefix = "year", 
+    values_from = pelvic_pain
+  )
+
+# combines sensory data with pelvic pain data in wide format
+sensory_data <- 
+  pelvic_pain_avg_wide %>% 
+  left_join(
+    .,
+    pca_data_z_sum %>% select(ss, supra, bladder, qst),
+    by = "ss"
+  ) %>%
+  # mean centers for intercept interpretation
+  mutate(
+    year0_mc = as.numeric(scale(year0, scale = FALSE)),
+    supra_mc = as.numeric(scale(supra, scale = FALSE)),
+    bladder_mc = as.numeric(scale(bladder, scale = FALSE)),
+    qst_mc = as.numeric(scale(qst, scale = FALSE))
+  ) %>%
+  # z-scores as well
+  mutate(
+    year0_z = as.numeric(scale(year0)),
+    supra_z = as.numeric(scale(supra)),
+    bladder_z = as.numeric(scale(bladder)),
+    qst_z = as.numeric(scale(qst))
+  )
+
+# Visualizes distributions
+sensory_data_z_long <- 
+  sensory_data %>% 
+  select(ss, ends_with("z")) %>% 
+  pivot_longer(-ss) %>%
+  mutate(name = fct_relevel(name, c("year0_z", "qst_z", "bladder_z", "supra_z")))
+
+pj <- position_jitter(width = .1)
+dis_plot_vars <- c("qst_z", "bladder_z", "supra_z")
+dist_plot <-
+  ggplot(
+    sensory_data_z_long %>% filter(name %in% dis_plot_vars), 
+    aes(name, value, color = name)
+    ) +
+  geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
+  geom_point(position = pj, alpha = 1/3) +
+  geom_boxplot(position = position_nudge(x = .3), width = .2) +
+  coord_cartesian(ylim = c(-5, 5)) +
+  labs(x = "Predictors", y = "Z-Score") +
+  scale_color_manual(values = ghibli_palettes$MononokeMedium[c(4:6)]) + 
+  theme_classic() +
+  theme(legend.position = "none")
+dist_plot
+
+# PCA distributions
+pca_mod_z <- 
+  pelvic_pain_avg_fi_wide %>%
+  # z-scores all meas
+  mutate(across(.cols = c(year_0, V1:V40), .fns = ~as.numeric(scale(.x))))
+apply(pca_mod_z, 2, mean) # double checks that everything this z scored
+apply(pca_mod_z, 2, sd) # double checks that everything this z scored
+
+# long-format
+pca_mod_z_long <- 
+  pca_mod_z %>% 
+  select(ss, year_0, V1, V2, V3) %>% 
+  pivot_longer(-ss) %>%
+  mutate(name = fct_relevel(name, c("year_0", "V1", "V2", "V3")))
+
+pj <- position_jitter(width = .1)
+pca_dist_vars <- c("V1", "V2", "V3")
+pca_dist_plot <-
+  ggplot(
+    pca_mod_z_long %>% filter(name %in% pca_dist_vars), 
+    aes(name, value, color = name)
+    ) +
+  geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
+  geom_point(position = pj, alpha = 1/3) +
+  geom_boxplot(position = position_nudge(x = .3), width = .2) +
+  coord_cartesian(ylim = c(-5, 5)) +
+  labs(x = "Predictors", y = "Z-Score") +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5)]) +
+  theme_classic() +
+  theme(legend.position = "none")
+pca_dist_plot
+
+# Pelvic Pain Outcome Plot (VERSION 2)
+this_color <- ghibli_palettes$PonyoMedium[2]
+pj <- position_jitter(width = .1, height = 0)
+pn <- position_nudge(x = .3)
+pp_outcome_plot_v2 <- 
+  ggplot(pelvic_pain_avg_ss %>% filter(year < 5), aes(factor(year), pelvic_pain, group = year)) +
+  geom_point(position = pj, alpha = 1/3, color = this_color) +
+  geom_boxplot(position = pn, width = .2, color = this_color) +
+  coord_cartesian(ylim = c(0, 100)) +
+  labs(
+    x = "Year", 
+    y = "Mean Pelvic Pain Outcome (0-100 VAS)", 
+  ) +
+  theme_classic()
+pp_outcome_plot_v2
+
+
+# Models
+year0_mod <- lm(year0 ~ 1 + supra_mc + bladder_mc + qst_mc, data = sensory_data)
+summary(year0_mod)
+check_model(year0_mod)
+
+year1_mod <- lm(year1 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
+summary(year1_mod)
+check_model(year1_mod)
+
+year2_mod <- lm(year2 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
+summary(year2_mod)
+check_model(year2_mod)
+
+year3_mod <- lm(year3 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
+summary(year3_mod)
+check_model(year3_mod)
+
+year4_mod <- lm(year4 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
+summary(year4_mod)
+check_model(year4_mod)
+
+year5_mod <- lm(year5 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
+summary(year5_mod)
+check_model(year5_mod)
+
+# Zero order correlations
+# Computes bootstrapped correlations (seed was set earlier in script)
+sens_zero_order_cors <-
+  psych::corr.test(
+    sensory_data %>% select(year0_mc, supra_mc, bladder_mc, qst_mc),
+    use = "pairwise",
+    method = "pearson", 
+    adjust = "none",
+    ci = TRUE,
+    minlength = 100 # extends the abrreviations
+  )
+sens_zero_order_cors$ci # the results
+
+# correlation results as tibble for plotting
+sens_cor_res <- 
+  as_tibble(sens_zero_order_cors$ci, rownames = "var") %>%
+  separate(var, into = c("var1", "var2"), sep = "-") %>%
+  mutate(var2 = fct_relevel(var2, c("qst_mc", "bladder_mc", "supra_mc")))
+
+# plots correlation results
+sens_cor_plot <-
+  ggplot(sens_cor_res %>% filter(var1 == "year0_mc"), aes(var2, r, color = var2)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = .2) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
+  scale_color_manual(values = ghibli_palettes$MononokeMedium[c(4,5,6)]) +
+  labs(
+    x = "Predictors", 
+    y = "r (correlation with baseline pelvic pain)", 
+    caption = "95% CI error bars."
+  ) +
+  theme_classic() +
+  theme(legend.position = "none")
+sens_cor_plot
+
+# CORRELATIONS PLOT
+# organizes pca cor res
+pca_cor_res <- 
+  zero_order_cors$ci %>% 
+  as_tibble(rownames = "var") %>%
+  separate(var, into = c("var1", "var2"), sep = "-")
+
+# combines both correlation plots together 
+cor_res <-
+  bind_rows(
+  pca_cor_res %>% filter(var1 == "year_0"), 
+  sens_cor_res %>% filter(var1 == "year0_mc")
+  ) %>%
+  mutate(
+    var2 = fct_relevel(
+      var2, 
+      c("qst_mc", "bladder_mc", "supra_mc", "V1", "V2", "V3")
+      )
+    )
+
+# plots correlation results
+cor_plot <-
+  ggplot(cor_res, aes(var2, r, color = var2)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = .2) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
+  scale_color_manual(
+    values = c(
+      ghibli_palettes$MononokeMedium[c(4,5,6)], 
+      ghibli_palettes$PonyoMedium[c(1, 3, 5)]
+      )
+    ) +
+  labs(
+    x = "Predictors", 
+    y = "r (correlation with baseline pelvic pain)", 
+    #caption = "95% CI error bars."
+  ) +
+  theme_classic() +
+  theme(legend.position = "none")
+cor_plot
+
+
+
+
+
+# models in a list
+sens_mods <- list(year1_mod, year2_mod, year3_mod, year4_mod, year5_mod)
+
+# sample sizes
+sens_mods %>%
+  map("model") %>%
+  map_dfr(~tibble(n = nrow(.x)), .id = "mod")
+
+# computes the partial eta squareds with CI
+sens_mods_peta2 <-
+  sens_mods %>%
+  map(
+    ~eta_squared(
+      car::Anova(.x, type = 3),
+      partial = TRUE, 
+      generalized = FALSE, 
+      ci = .95, 
+      alternative = "two.sided",
+      include_intercept = TRUE
+    )
+  ) %>%
+  map_dfr(~as_tibble(.x), .id = "dv_year") %>%
+  select(-CI) %>%
+  rename(Eta2_partial_CI_low = CI_low, Eta2_partial_CI_high = CI_high)
+
+# computes model estimates
+sens_mods_ests <- 
+  sens_mods %>% 
+  map_dfr(~broom::tidy(.x), .id = "dv_year") %>% 
+  rename(Parameter = term) # better for join
+
+# computes standardized regression coefficients with CI
+sens_mods_beta <- 
+  sens_mods %>% 
+  map_dfr(~as_tibble(standardize_parameters(.x)), .id = "dv_year") %>%
+  select(-CI) %>%
+  rename(beta = Std_Coefficient, beta_CI_low = CI_low, beta_CI_high = CI_high)
+
+# calculates the sums of squares
+sens_mods_ss <- 
+  sens_mods %>%
+  map_dfr(~as_tibble(car::Anova(.x, type = 3), rownames = "Parameter"), .id = "dv_year") %>%
+  rename(dfn = Df, SS = `Sum Sq`, F = `F value`, p = `Pr(>F)`)
+
+# reorganizes for the residuals (error)
+sens_mods_ss_resids <- 
+  sens_mods_ss %>% 
+  filter(Parameter == "Residuals") %>%
+  rename(SSE = SS, dfd = dfn) %>%
+  mutate(MSE = SSE / dfd) %>%
+  select(-F, -p, -Parameter)
+
+# includes correct SS with residuals
+sens_mods_ss_final <- 
+  sens_mods_ss %>% 
+  filter(Parameter != "Residuals") %>% 
+  left_join(., mods_ss_resids, by = "dv_year")
+
+# combines into one big table
+sens_mods_res <-
+  sens_mods_ests %>% 
+  left_join(., sens_mods_beta, by = c("dv_year", "Parameter")) %>%
+  left_join(., sens_mods_peta2, by = c("dv_year", "Parameter")) %>%
+  left_join(., sens_mods_ss_final, by = c("dv_year", "Parameter")) %>%
+  mutate(Parameter = gsub("[\\(\\)]", "", Parameter)) %>%
+  mutate(sig = p.value < .05, Parameter = as.factor(Parameter)) %>%
+  mutate(
+    Parameter = fct_relevel(
+      Parameter, 
+      c("Intercept", "year0_mc", "qst_mc", "bladder_mc", "supra_mc")
+    )
+  )
+
+# write out model results for manuscript table
+# uncomment to save out
+#write_csv(sens_mods_res, file = "../output/sens-mods-res.csv")
+
+
+# PARTIAL ETA SQUARED PLOT
+pd <- position_dodge(width = .4)
+sens_peta2_plot <- 
+  ggplot(
+    sens_mods_res %>% filter(Parameter != "Intercept", dv_year < 5), 
+    aes(dv_year, Eta2_partial, group = Parameter, color = Parameter)
+  ) +
+  geom_point(aes(shape = sig), position = pd, size = 2) +
+  # geom_errorbar(
+  #   aes(ymin = Eta2_partial_CI_low, ymax = Eta2_partial_CI_high), 
+  #   width = .2,
+  #   position = pd,
+  #   alpha = 1/2
+  # ) +
+  geom_line(position = pd, alpha = 1/2) +
+  scale_shape_manual(values = c(1, 16)) +
+  scale_color_manual(
+    values = c(
+      ghibli_palettes$PonyoMedium[c(2)], 
+      ghibli_palettes$MononokeMedium[c(4:6)]
+      )
+    ) +
+  labs(
+    x = "Year", 
+    y = "Partial Eta^2", 
+    #caption = "95% CI error bars."
+  ) +
+  theme_classic() +
+  coord_cartesian(ylim = c(0, .25)) +
+  theme(legend.position = "none")
+sens_peta2_plot #plots
+
+# BETA PLOT
+sens_beta_plot <- 
+  ggplot(
+    sens_mods_res %>% filter(Parameter != "Intercept", dv_year < 5), #  
+    aes(dv_year, beta, group = Parameter, color = Parameter)
+  ) +
+  geom_point(aes(shape = sig), position = pd, size = 2) +
+  # geom_errorbar(
+  #   aes(ymin = beta_CI_low, ymax = beta_CI_high), 
+  #   width = .2,
+  #   position = pd
+  # ) +
+  geom_line(position = pd) +
+  scale_shape_manual(values = c(1, 16)) +
+  scale_color_manual(values = ghibli_palettes$MononokeMedium[c(3:6)]) +
+  labs(
+    x = "Year", 
+    y = "Beta", 
+    caption = "95% CI error bars."
+  ) +
+  coord_cartesian(ylim = c(-.5, .75)) +
+  geom_hline(yintercept = 0, alpha = 1/3, linetype = 2) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+sens_beta_plot #plots
+
+# 6 panel figure
+model_res_figure <-
+  (dist_plot + pca_dist_plot) / 
+  (pp_outcome_plot_v2 + cor_plot) / 
+  (sens_peta2_plot + peta2_plot)
+model_res_figure
+
+# saves out for manuscript
+# uncomment out to save
+# ggsave(
+#   filename = "../output/model-res-figure-v2.svg",
+#   plot = model_res_figure,
+#   width = 6,
+#   height = 6,
+#   units = "in"
+#   )
+
 
 
 

@@ -351,10 +351,10 @@ sensory_res_plot
 
 # saves out for manuscript
 # uncomment out to save
-ggsave(
-  filename = "../output/sensory-res-plot.svg",
-  plot = sensory_res_plot,
-  width = 6,
-  height = 6,
-  units = "in"
-  )
+# ggsave(
+#   filename = "../output/sensory-res-plot.svg",
+#   plot = sensory_res_plot,
+#   width = 6,
+#   height = 6,
+#   units = "in"
+#   )
