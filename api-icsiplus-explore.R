@@ -524,7 +524,7 @@ peta2_plot <-
   scale_shape_manual(values = c(1, 16)) +
   scale_color_manual(
     values = c(
-      ghibli_palettes$PonyoMedium[c(1, 3, 5)],
+      ghibli_palettes$PonyoMedium[c(3, 5, 7)], # ghibli_palettes$PonyoMedium[c(1, 3, 5)],
       ghibli_palettes$PonyoMedium[2]
       )
     ) +
@@ -882,7 +882,7 @@ pca_dist_plot <-
   geom_boxplot(position = position_nudge(x = .3), width = .2) +
   coord_cartesian(ylim = c(-5, 5)) +
   labs(x = "Predictors", y = "Z-Score") +
-  scale_color_manual(values = ghibli_palettes$PonyoMedium[c(1, 3, 5)]) +
+  scale_color_manual(values = ghibli_palettes$PonyoMedium[c(3, 5, 7)]) +
   theme_classic() +
   theme(legend.position = "none")
 pca_dist_plot
@@ -995,7 +995,7 @@ cor_plot <-
   scale_color_manual(
     values = c(
       ghibli_palettes$MononokeMedium[c(4,5,6)], 
-      ghibli_palettes$PonyoMedium[c(1, 3, 5)]
+      ghibli_palettes$PonyoMedium[c(3, 5, 7)]
       )
     ) +
   labs(
@@ -1157,7 +1157,7 @@ model_res_figure
 # saves out for manuscript
 # uncomment out to save
 # ggsave(
-#   filename = "../output/model-res-figure-v2.svg",
+#   filename = "../output/model-res-figure-v3.svg",
 #   plot = model_res_figure,
 #   width = 6,
 #   height = 6,
