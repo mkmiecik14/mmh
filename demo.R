@@ -70,7 +70,9 @@ arm2_screen_demo <-
   select(-record_number) # takes out record number
   
 # combines into one demo df
-demo_data <- bind_rows(arm1_screen_demo, arm2_screen_demo)
+demo_data <- 
+  bind_rows(arm1_screen_demo, arm2_screen_demo) %>%
+  mutate(age = ifelse(ss == 24 & is.na(age), 19, age)) # ss 24 was missing age
 
 ########################
 #                      #

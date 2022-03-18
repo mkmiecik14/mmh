@@ -416,12 +416,36 @@ pelvic_pain_avg_fi_wide_mc <-
   # mean centers baseline PP (year_0) and all the components
   mutate(across(.cols = c(year_0, V1:V40), .fns = ~as.numeric(scale(.x, scale=FALSE))))
 
-# Runs models FIX THESE TO INCLUDE MC
+# Runs models
 mod_y1 <- lm(year_1 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 mod_y2 <- lm(year_2 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 mod_y3 <- lm(year_3 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 mod_y4 <- lm(year_4 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
 mod_y5 <- lm(year_5 ~ 1 + year_0 + V1 + V2 + V3, data = pelvic_pain_avg_fi_wide_mc)
+
+# Checks models
+check_model(mod_y1)
+check_model(mod_y2)
+check_model(mod_y3)
+check_model(mod_y4)
+check_model(mod_y5)
+
+check_heteroskedasticity(mod_y1)
+check_heteroskedasticity(mod_y2)
+check_heteroskedasticity(mod_y3)
+check_heteroskedasticity(mod_y4)
+
+check_normality(mod_y1) 
+check_normality(mod_y2)
+check_normality(mod_y3)
+check_normality(mod_y4)
+
+check_outliers(mod_y1)
+check_outliers(mod_y2)
+check_outliers(mod_y3)
+check_outliers(mod_y4)
+
+compare_performance(mod_y1, mod_y2, mod_y3, mod_y4, rank = TRUE)
 
 
 # Zero order correlations ----
@@ -912,22 +936,38 @@ check_model(year0_mod)
 year1_mod <- lm(year1 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
 summary(year1_mod)
 check_model(year1_mod)
+check_heteroscedasticity(year1_mod)
+check_normality(year1_mod)
+check_outliers(year1_mod)
 
 year2_mod <- lm(year2 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
 summary(year2_mod)
 check_model(year2_mod)
+check_heteroscedasticity(year2_mod)
+check_normality(year2_mod)
+check_outliers(year2_mod)
+
 
 year3_mod <- lm(year3 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
 summary(year3_mod)
 check_model(year3_mod)
+check_heteroscedasticity(year3_mod)
+check_normality(year3_mod)
+check_outliers(year3_mod)
 
 year4_mod <- lm(year4 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
 summary(year4_mod)
 check_model(year4_mod)
+check_heteroscedasticity(year4_mod)
+check_normality(year4_mod)
+check_outliers(year4_mod)
 
 year5_mod <- lm(year5 ~ 1 + year0_mc + supra_mc + bladder_mc + qst_mc, data = sensory_data) 
 summary(year5_mod)
 check_model(year5_mod)
+check_heteroscedasticity(year5_mod)
+check_normality(year5_mod)
+check_outliers(year5_mod)
 
 # Zero order correlations
 # Computes bootstrapped correlations (seed was set earlier in script)
@@ -1164,6 +1204,12 @@ model_res_figure
 #   units = "in"
 #   )
 
+# Saving out data for sensitivity analysis (see sensitivity-analysis.R)
+sensitivity_analysis_data <- 
+  pelvic_pain_avg_fi_wide %>% left_join(., sensory_data, by = "ss")
+
+# comment out to save out
+# save(sensitivity_analysis_data, file = "../output/sensitivity-analysis-data.rda")
 
 
 
