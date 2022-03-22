@@ -1211,6 +1211,85 @@ sensitivity_analysis_data <-
 # comment out to save out
 # save(sensitivity_analysis_data, file = "../output/sensitivity-analysis-data.rda")
 
+# Plotting MMH Quartiles and Pelvic Pain Outcome
+mmh_data <- 
+  pelvic_pain_avg_fi_wide %>%
+  select(ss, year_0:year_4, MMH = V1)
+
+mmh_quants <- quantile(mmh_data$MMH, probs = c(.25, .5, .75))
+
+mmh_data_grouped <-
+  mmh_data %>%
+  mutate(
+    quant = case_when(
+      MMH < mmh_quants[1] ~ "< 25%",
+      MMH >= mmh_quants[1] & MMH <= mmh_quants[3]  ~ "25-75%",
+      MMH > mmh_quants[3] ~ "> 75%"
+    )
+    )
+
+pj <- position_jitter(width = .1, height = 0)
+pn <- position_nudge(x = .2)
+mmh_boxplot <- 
+  ggplot(mmh_data_grouped, aes(x = "MMH", y = MMH, group = 1, color = quant)) +
+  geom_point(position = pj, alpha = 1/3) +
+  geom_boxplot(position = pn, width = .1) +
+  scale_color_brewer(palette = "Dark2") +
+  coord_cartesian(ylim = c(-11, 11)) +
+  theme_classic() +
+  theme(legend.position = "none")
+mmh_boxplot
+
+mmh_data_ss <- 
+  mmh_data_grouped %>%
+  pivot_longer(cols = c(-ss, -quant, -MMH), names_to = "year") %>%
+  filter(complete.cases(value)) %>%
+  mutate(year = as.numeric(regmatches(year, regexpr("\\d", year)))) 
+
+mmh_data_sum <-
+  mmh_data_ss %>%
+  group_by(quant, year) %>%
+  summarise(
+    m = mean(value), 
+    n = n(), 
+    sd = sd(value), 
+    sem = sd/sqrt(n)
+    ) %>%
+  ungroup()
+
+pj <- position_jitter(width = .1, y = 0)
+pn <- position_nudge(x = .2)
+mmh_quants_plot <- 
+  ggplot(mmh_data_sum, aes(year, m, group = quant, color = quant)) +
+  geom_point(data = mmh_data_ss, aes(y = value), alpha = 1/3, position = pj) +
+  geom_errorbar(aes(ymin = m-sem, ymax = m+sem), width = .1, position = pn) +
+  geom_point(position = pn) +
+  geom_line(position = pn) +
+  coord_cartesian(ylim = c(0, 100)) +
+  labs(
+    x = "Year", 
+    y = "Pelvic Pain Outcome (0-100 VAS)",
+    caption = "SEM error bars."
+    ) +
+  theme_classic() +
+  scale_color_brewer(palette = "Dark2") +
+  theme(legend.position = "bottom")
+mmh_quants_plot
+
+# mmh plot
+mmh_plot <- mmh_boxplot + mmh_quants_plot
+mmh_plot
+
+# saves out for manuscript
+# uncomment out to save
+# ggsave(
+#   filename = "../output/mmh-plot-v1.svg",
+#   plot = mmh_plot,
+#   width = 4.5,
+#   height = 4,
+#   units = "in"
+#   )
+
 
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-

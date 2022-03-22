@@ -41,6 +41,7 @@ library(RColorBrewer)
 rdgy_pal <- brewer.pal(11, "RdGy")
 library(wesanderson)
 library(ggsci)
+library(MetBrewer)
 
 # Numerical
 options(scipen = 999) # will prevent scientific notation
