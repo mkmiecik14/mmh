@@ -206,12 +206,18 @@ ggplot(groupwise_annual_icsi, aes(annual, m, group = group, color = group)) +
   scale_color_jco() +
   labs(x = "Year", y = "Mean ICSI Score") +
   theme(legend.position = "none")
-ggsave(
-  filename = "../output/crampp-renewal-icsi-v2.svg", 
-  width = 2, 
-  height = 1.5, 
-  units = "in"
-  )
+
+# uncomment to save out
+# ggsave(
+#   filename = "../output/crampp-renewal-icsi-v2.svg", 
+#   width = 2, 
+#   height = 1.5, 
+#   units = "in"
+#   )
+
+icsi_data <- annual_icsi_ss %>% filter(group %in% c("DYS", "DYSB", "HC"))
+
+length(unique(icsi_data$ss))
 
   
   
