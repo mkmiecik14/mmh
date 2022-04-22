@@ -29,7 +29,7 @@ annual_data <-
 #      #
 ########
 
-# Spagetti plot
+# Spaghetti plot
 ggplot(annual_data, aes(year, icsi, group = ss, color = group)) +
   geom_smooth(method = "lm", se = FALSE) +
   theme_bw()
@@ -133,49 +133,108 @@ pp_mods <-
       )
 # remember that you have more models to play with above ^^^
 
+
+# This function extracts model estimates from a df with cols as mods
+extract_ests <- 
+  function(mods = x, model = y){
+    ests <- 
+      mods %>%
+      summarise(broom::tidy({{model}})) %>%
+      ungroup() %>%
+      mutate(
+        term = gsub("[[:punct:]]", "", term),
+        dir = ifelse(estimate<0, "neg", "pos")
+      )
+    return(ests)
+  }
+
 # Extracts model estimates
-pp_ests <- 
-  pp_mods %>%
-  summarise(broom::tidy(pp_mod)) %>%
-  ungroup() %>%
-  mutate(
-    term = gsub("[[:punct:]]", "", term),
-    dir = ifelse(estimate<0, "neg", "pos")
-  )
+pp_ests <- extract_ests(mods = pp_mods, model = pp_mod) 
+ur_ests <- extract_ests(mods = pp_mods, model = ur_mod) 
+bowel_ests <- extract_ests(mods = pp_mods, model = bowel_mod)  
+mens_nonmens_ests <- extract_ests(mods = pp_mods, model = mens_nonmens_mod)  
 
 # Identifies who went up or down in pelvic pain for joining
 pp_up_down <- pp_ests %>% filter(term == "year", complete.cases(estimate))
+ur_up_down <- ur_ests %>% filter(term == "year", complete.cases(estimate))
+bowel_up_down <- bowel_ests %>% filter(term == "year", complete.cases(estimate))
+mens_nonmens_up_down <- 
+  mens_nonmens_ests %>% filter(term == "year", complete.cases(estimate))
 
 # Joins the above info with the main data frame
 pp_data_ss <-
   pp_data_wide %>% 
   select(ss, year, group, pelvic_pain) %>%
-  left_join(., pp_up_down, by = "ss")
+  left_join(., pp_up_down, by = "ss") %>%
+  mutate(meas = pelvic_pain, data = "pelvic_pain") %>%
+  select(-pelvic_pain)
+
+ur_data_ss <-
+  pp_data_wide %>%
+  select(ss, year, group, urination_pain_last_week) %>%
+  left_join(., ur_up_down, by = "ss") %>%
+  mutate(meas = urination_pain_last_week, data = "ur_pain") %>%
+  select(-urination_pain_last_week)
+
+bowel_data_ss <-
+  pp_data_wide %>%
+  select(ss, year, group, bowel_mov_pain_last_week) %>%
+  left_join(., bowel_up_down, by = "ss") %>%
+  mutate(meas = bowel_mov_pain_last_week, data = "bowel_pain") %>%
+  select(-bowel_mov_pain_last_week)
+
+mens_nonmens_data_ss <-
+  pp_data_wide %>%
+  select(ss, year, group, mens_nonmens_pain_week) %>%
+  left_join(., mens_nonmens_up_down, by = "ss") %>%
+  mutate(meas = mens_nonmens_pain_week, data = "mens_nonmens_pain") %>%
+  select(-mens_nonmens_pain_week)
+
+# Combines all data into one df
+data_ss <- 
+  bind_rows(pp_data_ss, ur_data_ss, bowel_data_ss, mens_nonmens_data_ss) %>%
+  mutate(
+    data = fct_relevel(
+      data, 
+      c("ur_pain", "bowel_pain", "mens_nonmens_pain", "pelvic_pain")
+      )
+    )
+  
 
 # Computes summary statistics
-pp_data_sum <- 
-  pp_data_ss %>%
-  filter(complete.cases(pelvic_pain, dir)) %>%
-  group_by(year, group, dir) %>%
+data_sum <- 
+  data_ss %>%
+  filter(complete.cases(meas, dir)) %>%
+  group_by(year, group, dir, data) %>%
   summarise(
-    m = mean(pelvic_pain),
-    sd = sd(pelvic_pain),
+    m = mean(meas),
+    sd = sd(meas),
     n = n(),
     sem = sd/sqrt(n)
   ) %>%
   ungroup()
 
 # Plots summary statistics
-ggplot(pp_data_sum, aes(year, m, color = dir)) +
-  geom_path() +
-  geom_point() +
-  geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2) +
+pd <- position_dodge(width = .5)
+ggplot(data_sum, aes(year, m, color = dir)) +
+  geom_path(position = pd) +
+  geom_point(aes(size = n), position = pd) +
+  geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
   scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
   coord_cartesian(ylim = c(0, 50)) +
   scale_y_continuous(breaks = seq(0, 50, 10), minor_breaks = NULL) +
-  labs(x = "Year", y = "Mean Pelvic Pain (0-100 VAS)", caption = "SEM error bars.") +
+  labs(x = "Year", y = "Mean Pain (0-100 VAS)", caption = "SEM error bars.") +
   theme_bw() +
-  facet_wrap(~group)
+  facet_grid(data~group)
+
+# table of sample sizes
+data_sum %>% 
+  select(year, group, dir, data, n) %>%
+  split(interaction(.$year, .$dir)) %>%
+  map(~pivot_wider(.x, id_cols = data, names_from = group, values_from = n))
+
+
+
 
 # Looking at pelvic pain VAS without directionality
 pp_data_group_ss <-
