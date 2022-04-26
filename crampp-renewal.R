@@ -119,7 +119,8 @@ pp_data_wide <-
       c(urination_pain_last_week, bowel_mov_pain_last_week, mens_nonmens_pain_week)
       )
     ) %>%
-  ungroup()
+  ungroup() %>%
+  filter(year < 3) # comment out if you want all the years
 
 # Model these data using regression for each participant
 pp_mods <- 
@@ -221,8 +222,8 @@ ggplot(data_sum, aes(year, m, color = dir)) +
   geom_point(aes(size = n), position = pd) +
   geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
   scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
-  coord_cartesian(ylim = c(0, 50)) +
-  scale_y_continuous(breaks = seq(0, 50, 10), minor_breaks = NULL) +
+  coord_cartesian(ylim = c(0, 70)) +
+  scale_y_continuous(breaks = seq(0, 70, 10), minor_breaks = NULL) +
   labs(x = "Year", y = "Mean Pain (0-100 VAS)", caption = "SEM error bars.") +
   theme_bw() +
   facet_grid(data~group)
@@ -340,18 +341,3 @@ ggplot(
   theme_bw() +
   facet_wrap(~name, scales = "free")
   
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
