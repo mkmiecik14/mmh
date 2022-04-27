@@ -234,6 +234,39 @@ data_sum %>%
   split(interaction(.$year, .$dir)) %>%
   map(~pivot_wider(.x, id_cols = data, names_from = group, values_from = n))
 
+# Computes summary statistics a different way
+data_sum_2 <- 
+  data_ss %>%
+  filter(complete.cases(meas, dir)) %>%
+  group_by(year, dir, data) %>%
+  summarise(
+    m = mean(meas),
+    sd = sd(meas),
+    n = n(),
+    sem = sd/sqrt(n)
+  ) %>%
+  ungroup()
+
+# Plots summary statistics
+pd <- position_dodge(width = .5)
+ggplot(data_sum_2, aes(year, m, color = dir)) +
+  geom_path(position = pd) +
+  geom_point(aes(size = n), position = pd) +
+  geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
+  scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
+  coord_cartesian(ylim = c(0, 70)) +
+  scale_y_continuous(breaks = seq(0, 70, 10), minor_breaks = NULL) +
+  labs(x = "Year", y = "Mean Pain (0-100 VAS)", caption = "SEM error bars.") +
+  theme_bw() +
+  facet_grid(~data)
+
+data_ss %>%
+  filter(complete.cases(meas, dir)) %>%
+  group_by(year, dir, data) %>%
+  summarise(n = n())
+# use this as a join to calc percentage above
+
+
 
 
 
