@@ -228,11 +228,77 @@ ggplot(data_sum, aes(year, m, color = dir)) +
   theme_bw() +
   facet_grid(data~group)
 
+# Focused plot of above
+pd <- position_dodge(width = .2)
+dysb_worse_plot <- 
+  ggplot(
+  data_sum %>% filter(dir == "pos", data == "pelvic_pain"), 
+  aes(year, m, color = group)
+  ) +
+  geom_path(position = pd) +
+  geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
+  geom_point(position = pd) +
+  scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
+  #geom_text_repel(aes(label = paste0("n = ", n)), position = pd) +
+  coord_cartesian(ylim = c(0, 40)) +
+  scale_y_continuous(breaks = seq(0, 40, 10), minor_breaks = NULL, expand = c(0, 0)) +
+  labs(x = "Year", y = "Pelvic Pain (0-100 VAS)", caption = "SEM error bars.") +
+  theme_bw() +
+  scale_color_jco() +
+  theme(legend.position = "bottom")
+
+# uncomment out to save
+# ggsave(
+#   filename = "../output/dysb-worse-plot.svg",
+#   plot = dysb_worse_plot,
+#   width = 4.5,
+#   height = 4,
+#   units = "in"
+# )
+
 # table of sample sizes
 data_sum %>% 
   select(year, group, dir, data, n) %>%
   split(interaction(.$year, .$dir)) %>%
   map(~pivot_wider(.x, id_cols = data, names_from = group, values_from = n))
+
+# sample sizes of improving/worsening when collapsed across patient group
+# for join below
+total_sample_sizes <- 
+  data_sum %>%
+  group_by(year, group, data) %>%
+  summarise(sample = sum(n))
+
+total_sample_sizes_wide <-
+  total_sample_sizes %>%
+  pivot_wider(
+    id_cols = c(year, data), 
+    names_from = group, 
+    values_from = sample,
+    names_prefix = "total_"
+    )
+
+up_down_n <- 
+  data_sum %>%
+  pivot_wider(
+    id_cols = c(year, dir, data), 
+    names_from = group, 
+    values_from = n
+    ) %>%
+  left_join(., total_sample_sizes_wide, by = c("year", "data")) %>%
+  mutate(
+    perc_DYS = DYS/total_DYS,
+    perc_DYSB = DYSB/total_DYSB,
+    perc_HC = HC/total_HC
+    )
+
+
+
+up_down_n %>%
+  filter(data == "pelvic_pain") %>%
+  group_by(year) %>%
+  summarise(DYSB = sum(DYSB))
+   
 
 # Computes summary statistics a different way
 data_sum_2 <- 
@@ -245,7 +311,8 @@ data_sum_2 <-
     n = n(),
     sem = sd/sqrt(n)
   ) %>%
-  ungroup()
+  ungroup() %>%
+  left_join(., up_down_n, by = c("year", "dir", "data"))
 
 # Plots summary statistics
 pd <- position_dodge(width = .5)
@@ -253,17 +320,19 @@ ggplot(data_sum_2, aes(year, m, color = dir)) +
   geom_path(position = pd) +
   geom_point(aes(size = n), position = pd) +
   geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
+  geom_text_repel(aes(label = paste0(round(perc_HC*100), "%"))) +
   scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
   coord_cartesian(ylim = c(0, 70)) +
   scale_y_continuous(breaks = seq(0, 70, 10), minor_breaks = NULL) +
-  labs(x = "Year", y = "Mean Pain (0-100 VAS)", caption = "SEM error bars.") +
+  labs(
+    x = "Year", 
+    y = "Mean Pain (0-100 VAS)", 
+    caption = "SEM error bars. \n Numbers indicate % DYSB."
+    ) +
   theme_bw() +
   facet_grid(~data)
 
-data_ss %>%
-  filter(complete.cases(meas, dir)) %>%
-  group_by(year, dir, data) %>%
-  summarise(n = n())
+
 # use this as a join to calc percentage above
 
 
