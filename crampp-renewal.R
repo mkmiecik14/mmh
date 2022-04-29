@@ -246,6 +246,7 @@ dysb_worse_plot <-
   theme_bw() +
   scale_color_jco() +
   theme(legend.position = "bottom")
+dysb_worse_plot
 
 # uncomment out to save
 # ggsave(
