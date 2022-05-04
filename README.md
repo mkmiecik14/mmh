@@ -2,8 +2,7 @@
 
 Code for data processing and analysis of the Multimodal Hypersensitivity project.
 
-Full details of this project and data can be found on Open Science Framework: [link to appear here]
-
+More details of this project and data can be found on [Open Science Framework](https://osf.io/27ky9/?view_only=90108c59ca8a4431800492a5686b7ef2) (DOI: 10.17605/OSF.IO/27KY9).
 
 Packages, functions, and variables that were used across several scripts are located in `r-prep.R`
 
@@ -43,6 +42,9 @@ Principal component analysis and inferential testing was performed using the `pc
 
 Annual data for the ICSI (our CPP outcome measure) were pulled from Redcap using the API (`api-calls.R`) and preprocessed using `api-prepro.R`. As more participants complete their annual questionnaires, these data can be refreshed by running `api-calls.R`.
 
+Later longitudinal analyses were completed using `api-icsiplus-prepro.R` and `api-icsiplus-explore.R` where pelvic pain outcome was more comprehensively modeled.
+
+Sensory analyses were conducted in `sensory-analysis.R` and `sensory-analysis-explore.R`. Sensitivity analyses were conducted in `sensitivity-analyses-proc.R`. 
 
 # MISC
 
