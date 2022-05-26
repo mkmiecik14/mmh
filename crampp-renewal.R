@@ -257,6 +257,81 @@ dysb_worse_plot
 #   units = "in"
 # )
 
+# Plots participants that get worse and better
+pd <- position_dodge(width = .2)
+dysb_better_worse_plot <-
+  ggplot(
+    data_sum %>% filter(data == "pelvic_pain"), 
+    aes(year, m, color = group)
+  ) +
+  geom_path(position = pd) +
+  geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
+  geom_point(position = pd) +
+  scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
+  #geom_text_repel(aes(label = paste0("n = ", n)), position = pd) +
+  coord_cartesian(ylim = c(0, 40)) +
+  scale_y_continuous(breaks = seq(0, 40, 10), minor_breaks = NULL, expand = c(0, 0)) +
+  labs(x = "Year", y = "Pelvic Pain (0-100 VAS)", caption = "SEM error bars.") +
+  theme_bw() +
+  facet_wrap(~dir) +
+  scale_color_jco() +
+  theme(legend.position = "bottom")
+dysb_better_worse_plot
+
+# uncomment out to save
+# ggsave(
+#   filename = "../output/dysb-better-worse-plot.svg",
+#   plot = dysb_better_worse_plot,
+#   width = 4.5,
+#   height = 4,
+#   units = "in"
+#   )
+
+# Difference in MMH?
+load("../output/mmh-res.RData")
+
+# row-wise factor scores
+fi <- 
+  as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
+  mutate(ss = as.numeric(ss))
+
+data_ss_mmh <- 
+  data_ss %>% 
+  left_join(., fi %>% select(ss, V1), by = "ss") %>%
+  rename(mmh = V1)
+
+# filters ss that had a slope and mmh score
+data_ss_mmh_complete <- 
+  data_ss_mmh %>% 
+  filter(
+    year == 0, 
+    data == "pelvic_pain", 
+    complete.cases(mmh), 
+    complete.cases(dir)
+    )
+
+data_ss_mmh_complete_sum <- 
+  data_ss_mmh_complete %>%
+  group_by(dir) %>%
+  summarise(
+    m = mean(mmh),
+    sd = sd(mmh),
+    n = n(),
+    sem = sd/sqrt(n)
+  )
+
+pj <- position_jitter(width = .2)
+ggplot(data_ss_mmh_complete_sum, aes(dir, m, group = dir, color = dir)) +
+  geom_point(
+    data = data_ss_mmh_complete, 
+    aes(y = mmh), 
+    position = pj,
+    alpha = 1/3
+    ) +
+  geom_point()
+  
+
+
 # table of sample sizes
 data_sum %>% 
   select(year, group, dir, data, n) %>%
