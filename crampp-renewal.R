@@ -287,6 +287,69 @@ dysb_better_worse_plot
 #   units = "in"
 #   )
 
+data_ss_comb <- 
+  data_ss %>%
+  filter(complete.cases(dir)) %>%
+  mutate(
+    group_comb = ifelse(group == "DYSB", paste0("DYSB", dir), group),
+    )
+
+data_ss_comb_sum <- 
+  data_ss_comb %>%
+  filter(complete.cases(meas)) %>%
+  group_by(group_comb, data, year) %>%
+  summarise(
+    m = mean(meas),
+    sd = sd(meas),
+    n = n(),
+    sem = sd/sqrt(n)
+  ) %>%
+  ungroup()
+
+# Plots dysb participants that get worse and better + HC+DYS
+pd <- position_dodge(width = .2)
+jcopal <- pal_jco("default")(10)
+
+  ggplot(
+    data_ss_comb_sum %>% filter(data == "pelvic_pain"), 
+    aes(year, m, color = group_comb)
+  ) +
+  geom_path(aes(linetype = group_comb), position = pd) +
+  geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
+  geom_point(position = pd) +
+  scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
+  geom_text_repel(aes(label = paste0("n = ", n)), position = pd) +
+  coord_cartesian(ylim = c(0, 40)) +
+  scale_y_continuous(breaks = seq(0, 40, 10), minor_breaks = NULL, expand = c(0, 0)) +
+  labs(x = "Year", y = "Pelvic Pain (0-100 VAS)", caption = "SEM error bars.") +
+  scale_linetype_manual(values = c(1, 1, 2, 1)) +
+  scale_color_manual(values = c(jcopal[1], jcopal[2], jcopal[2], jcopal[3])) +
+  theme_bw() +
+  #scale_color_jco() +
+  theme(legend.position = "bottom")
+
+pj <- position_jitter(width = .2)
+ggplot(
+  data_ss_comb %>% filter(data == "pelvic_pain"), 
+  aes(year, meas, group = group_comb, color = group_comb)
+  ) +
+  geom_point(position = pj) +
+  geom_smooth(aes(linetype = group_comb), method = lm, se = TRUE) +
+  coord_cartesian(ylim = c(0, 80)) +
+  scale_y_continuous(breaks = seq(0, 80, 10), minor_breaks = NULL) +
+  scale_x_continuous(breaks = seq(0, 2, 1), minor_breaks = NULL) +
+  labs(x = "Year", y = "Pelvic Pain (0-100 VAS)", caption = "SEM error bars.") +
+  scale_linetype_manual(values = c(1, 2, 1)) +
+  scale_color_manual(values = c(jcopal[2], jcopal[2], jcopal[1])) +
+  theme_bw() +
+  #scale_color_jco() +
+  theme(legend.position = "bottom")
+  
+  
+  
+
+  
+
 # Difference in MMH?
 load("../output/mmh-res.RData")
 
