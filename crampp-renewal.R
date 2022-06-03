@@ -287,6 +287,13 @@ dysb_better_worse_plot
 #   units = "in"
 #   )
 
+# writes out n for grant
+# uncomment to save out
+# write_csv(
+#   data_sum %>% filter(data == "pelvic_pain"), 
+#   file = "../output/dysb-better-worse-n.csv"
+#   )
+
 data_ss_comb <- 
   data_ss %>%
   filter(complete.cases(dir)) %>%
@@ -309,7 +316,7 @@ data_ss_comb_sum <-
 # Plots dysb participants that get worse and better + HC+DYS
 pd <- position_dodge(width = .2)
 jcopal <- pal_jco("default")(10)
-
+dysb_better_worse_plot_2 <- 
   ggplot(
     data_ss_comb_sum %>% filter(data == "pelvic_pain"), 
     aes(year, m, color = group_comb)
@@ -318,7 +325,7 @@ jcopal <- pal_jco("default")(10)
   geom_errorbar(aes(ymin=m-sem, ymax = m+sem), width = .2, position = pd) +
   geom_point(position = pd) +
   scale_x_continuous(breaks = 0:5, minor_breaks = NULL) +
-  geom_text_repel(aes(label = paste0("n = ", n)), position = pd) +
+  #geom_text_repel(aes(label = paste0("n = ", n)), position = pd) +
   coord_cartesian(ylim = c(0, 40)) +
   scale_y_continuous(breaks = seq(0, 40, 10), minor_breaks = NULL, expand = c(0, 0)) +
   labs(x = "Year", y = "Pelvic Pain (0-100 VAS)", caption = "SEM error bars.") +
@@ -327,6 +334,14 @@ jcopal <- pal_jco("default")(10)
   theme_bw() +
   #scale_color_jco() +
   theme(legend.position = "bottom")
+# uncomment out to save
+# ggsave(
+#   filename = "../output/dysb-better-worse-plot-v2.svg",
+#   plot = dysb_better_worse_plot_2,
+#   width = 4.5,
+#   height = 4,
+#   units = "in"
+#   )
 
 pj <- position_jitter(width = .2)
 ggplot(
