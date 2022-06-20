@@ -216,6 +216,8 @@ cor_plot
 
 # models in a list
 mods <- list(year1_mod, year2_mod, year3_mod, year4_mod, year5_mod)
+sensory_mods <- mods # for saving out and naming consistency
+#save(sensory_mods, file = "../output/sensory-mods.rda") # uncomment out to save
 
 # sample sizes
 mods %>%
@@ -358,3 +360,141 @@ sensory_res_plot
 #   height = 6,
 #   units = "in"
 #   )
+
+####################################
+#                                  #
+# Looking at MMH vs. uni-modal QST #
+#                                  #
+####################################
+
+# combines with PCA factors
+# factor scores for the rows (subjects)
+fi <-
+  as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
+  mutate(ss = as.numeric(ss))
+
+sens_mmh_data <- 
+  sensory_data %>% 
+  left_join(., fi %>% select(ss:V3), by = "ss") %>%
+  mutate(
+    V1_mc = as.numeric(scale(V1, scale = FALSE)),
+    V2_mc = as.numeric(scale(V2, scale = FALSE)),
+    V3_mc = as.numeric(scale(V3, scale = FALSE))
+    )
+
+# Models
+y1_mod_sens <- 
+  lm(year1 ~ 1 + year0_mc + qst_z + bladder_z + supra_z, data = sens_mmh_data)
+y2_mod_sens <- 
+  lm(year2 ~ 1 + year0_mc + qst_z + bladder_z + supra_z, data = sens_mmh_data)
+y3_mod_sens <- 
+  lm(year3 ~ 1 + year0_mc + qst_z + bladder_z + supra_z, data = sens_mmh_data)
+y4_mod_sens <- 
+  lm(year4 ~ 1 + year0_mc + qst_z + bladder_z + supra_z, data = sens_mmh_data)
+
+y1_mod_pca <-
+  lm(year1 ~ 1 + year0_mc + V1_mc, data = sens_mmh_data)
+y2_mod_pca <-
+  lm(year2 ~ 1 + year0_mc + V1_mc, data = sens_mmh_data)
+y3_mod_pca <-
+  lm(year3 ~ 1 + year0_mc + V1_mc, data = sens_mmh_data)
+y4_mod_pca <-
+  lm(year4 ~ 1 + year0_mc + V1_mc, data = sens_mmh_data)
+
+models <- 
+  list(
+    y1_mod_sens, y2_mod_sens, y3_mod_sens, y4_mod_sens,
+    y1_mod_pca, y2_mod_pca, y3_mod_pca, y4_mod_pca
+    )
+
+models_glance <-
+  models %>%
+  map_df(~broom::glance(.x), .id = "model") %>%
+  mutate(
+    model = c(
+      "y1_mod_sens", "y2_mod_sens", "y3_mod_sens", "y4_mod_sens",
+     "y1_mod_pca", "y2_mod_pca", "y3_mod_pca", "y4_mod_pca"
+    )
+    ) %>%
+  separate(model, into = c("year", "mod", "meas")) %>%
+  mutate(year = as.numeric(gsub("y","",year)))
+
+ggplot(models_glance, aes(year, AIC, group = meas, color = meas)) +
+  geom_line() +
+  theme_bw()
+
+models_glance_long <- 
+  models_glance %>% 
+  select(year, meas, r.squared, adj.r.squared, AIC, BIC) %>%
+  pivot_longer(c(-year, -meas))
+
+models_glance_sum <-
+  models_glance_long %>%
+  group_by(year, name) %>%
+  summarise(value_diff = -1*diff(value)) %>% # -1*(pca-sens) means anything>2 favors PCA
+  ungroup()
+
+ggplot(models_glance_sum, aes(year, value_diff)) +
+  geom_point() +
+  geom_path() +
+  theme_bw() + 
+  facet_wrap(~name, scales = "free")
+
+ggplot(
+  models_glance_sum %>% filter(name %in% c("AIC", "BIC")),
+  aes(year, value_diff, group = name, linetype = name)
+  ) +
+  geom_rect(
+    aes(xmin=1, xmax = 4, ymin = 0, ymax = 2), 
+    fill = "grey", 
+    alpha = 1/3,
+    color = "grey"
+    ) +
+  geom_point() +
+  geom_path() +
+  labs(x = "Year", y = "Information Criterion") +
+  scale_y_continuous(
+    limits = c(0, 12), 
+    breaks = seq(0,12,2), 
+    minor_breaks = NULL
+    ) +
+  scale_x_continuous(minor_breaks = NULL) +
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+# https://stats.stackexchange.com/questions/8513/test-equivalence-of-non-nested-models/8519#8519
+# library(lmtest)
+# coxtest(y1_mod_sens, y1_mod_pca)
+# coxtest(y2_mod_sens, y2_mod_pca)
+# coxtest(y3_mod_sens, y3_mod_pca)
+# coxtest(y4_mod_sens, y4_mod_pca)
+# jtest(y1_mod_sens, y1_mod_pca)
+# jtest(y2_mod_sens, y2_mod_pca)
+# jtest(y3_mod_sens, y3_mod_pca)
+# jtest(y4_mod_sens, y4_mod_pca)
+
+# Looking at attrition - - - -
+# joins sensory data with group
+sensory_data_group <- 
+  sensory_data %>% 
+  left_join(., ss_codes %>% select(ss, group), by = "ss")
+
+# formats to long format so can easily remove missing values
+sensory_data_group_long <- 
+  sensory_data_group %>% 
+  select(ss, group, year0:year4) %>%
+  pivot_longer(c(-ss, -group)) %>%
+  filter(complete.cases(value))
+
+# pivots wider for contigency table
+attrition_cont <-
+  sensory_data_group_long %>% 
+  count(group, name) %>% 
+  pivot_wider(id_cols = group, names_from = name, values_from = n)
+
+# Forms contingency table as matrix
+attrition_cont_mat <- attrition_cont %>% select(-group) %>% as.matrix() 
+row.names(attrition_cont_mat) <- attrition_cont$group
+
+# Performs chi square test 
+chisq.test(attrition_cont_mat)

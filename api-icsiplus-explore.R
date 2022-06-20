@@ -447,6 +447,9 @@ check_outliers(mod_y4)
 
 compare_performance(mod_y1, mod_y2, mod_y3, mod_y4, rank = TRUE)
 
+# saving out models
+pca_mods <- list(mod_y1, mod_y2, mod_y3, mod_y4, mod_y5)
+#save(pca_mods, file = "../output/pca-mods.rda") # uncomment out to save
 
 # Zero order correlations ----
 set.seed(14) # sets seed for reproducible boostrapping

@@ -268,7 +268,6 @@ redcap_promis_depression_data <-
 save(redcap_promis_depression_data, file = "../output/redcap-promis-depression-data.RData") # RData
 write_csv(redcap_promis_depression_data, file = "../output/redcap-promis-depression-data.csv") # CSV
 
-
 # Cleaning script objects ----
 rm(
   arm1_avisit1_data, 
