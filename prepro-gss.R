@@ -34,7 +34,17 @@ load("../output/mmh-res.RData") # loads in PCA data for ss numbers
 #* fix the earlier cmsi questions.
 #* My temporary solution is to assume that all participants that are included in
 #* the PCA analysis (i.e., had complete QST data) completed the CMSI and use the 
-#* excel version
+#* excel version.
+#* UPDATE: Kevin provided a document that lists participants with missing CMSI 
+#* data. Use this to replace values with NA
+
+# This is the sheet with the missing cmsi data
+cmsi_missing_data <- 
+  read_excel(path = "../data/cmsi-missing-data.xlsx", sheet = "for-r", na = "ms")
+
+# df of missing subjects only
+missing_ss <- cmsi_missing_data %>% filter(is.na(cmsi_gen1___1))
+
 
 # Reads in csv data (i.e., excel version)
 arm1_screen_data <- 
@@ -69,21 +79,22 @@ arm2_cmsi <-
   filter(complete.cases(ss))
 
 # combines arm 1 and 2 cmsi data 
-cmsi_data <- bind_rows(arm1_cmsi, arm2_cmsi) %>% arrange(ss)
-
+cmsi_data <- 
+  bind_rows(arm1_cmsi, arm2_cmsi) %>% 
+  arrange(ss)
 
 # narrows down data for 200 PCA participants - - - -
 
-# gets factor scores and ss for later
-fi <- 
-  as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
-  mutate(ss = as.numeric(ss)) %>%
-  left_join(., crampp_codes %>% select(ss, group), by = "ss") %>%
-  select(ss, group, V1:V40)
-
-
-# THE MAIN DATA FRAME FOR GSS COMPUTATIONS
-cmsi_data_pca <- cmsi_data %>% filter(ss %in% fi$ss)
+# # gets factor scores and ss for later
+# fi <- 
+#   as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
+#   mutate(ss = as.numeric(ss)) %>%
+#   left_join(., crampp_codes %>% select(ss, group), by = "ss") %>%
+#   select(ss, group, V1:V40)
+# 
+# 
+# # THE MAIN DATA FRAME FOR GSS COMPUTATIONS
+# cmsi_data_pca <- cmsi_data %>% filter(ss %in% fi$ss)
 
 
 #############
@@ -93,7 +104,7 @@ cmsi_data_pca <- cmsi_data %>% filter(ss %in% fi$ss)
 #############
 
 cmsi_pain_site_ss <- 
-  cmsi_data_pca %>% 
+  cmsi_data %>% 
   select(ss, starts_with("cmsi_fibro1")) %>% # pain at sites in last 7 days
   # removes the no pain column, as can be inferred from the remaining columns
   select(-cmsi_fibro1___99) %>%
@@ -101,7 +112,8 @@ cmsi_pain_site_ss <-
   group_by(ss) %>%
   summarise(sum = sum(value), total_possible = n()) %>%
   ungroup() %>%
-  mutate(sub_q = "pain_sites")
+  mutate(sub_q = "pain_sites") %>%
+  mutate(sum = ifelse(ss %in% missing_ss$ss, NA, sum)) # INCLUDES NAs
 
 ###########################################
 #                                         #
@@ -110,7 +122,7 @@ cmsi_pain_site_ss <-
 ###########################################
 
 sa_ss_data_ss <-
-  cmsi_data_pca %>%
+  cmsi_data %>%
   select(ss, starts_with("cmsi_gen")) %>%
   pivot_longer(-ss) %>%
   separate(name, into = c("meas", "q", "time")) %>%
@@ -123,15 +135,34 @@ sa_ss_data_ss <-
       )
     )
 
+# this is the new and improved CMSI data set for use in this study
+# it will be saved out and replace the old method
+cmsi_data_clean <- 
+  sa_ss_data_ss %>%
+  mutate(value = ifelse(ss %in% missing_ss$ss, NA, value)) %>%
+  group_by(ss, time) %>%
+  summarise(sum = sum(value), n = n()) %>% # here is a mid calc check
+  ungroup() %>%
+  pivot_wider(id_cols = ss, names_from = time, values_from = sum) %>%
+  rename(cmsi_3_months = `1`, cmsi_lifetime = `2`)
+
+# saves out
+# uncomment to save out
+#save(cmsi_data_clean, file = "../output/cmsi-data-clean.rda")
+#write_csv(cmsi_data_clean, file = "../output/cmsi-data-clean.csv")
+
+
 # calculates sum total score
 sa_ss_data_sum <- 
   sa_ss_data_ss %>%
   filter(sub_q %in% c("sens", "sa")) %>% # filters out questions not part of gss
   group_by(ss, time, sub_q) %>%
   summarise(sum = sum(value), total_possible = n()) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(sum = ifelse(ss %in% missing_ss$ss, NA, sum)) # INCLUDES NAs
+  
 
-# creating GSS
+# creating GSS data frame
 gss_data_long <-
   sa_ss_data_sum %>% 
   filter(time == 1) %>% # pain in last three months
@@ -139,21 +170,9 @@ gss_data_long <-
   bind_rows(., cmsi_pain_site_ss %>% select(-total_possible)) %>%
   arrange(ss, sub_q)
 
-# calculates GSS here and is in wide format
-gss_data_wide <-
-  gss_data_long %>% 
-  pivot_wider(id_cols = ss, names_from = "sub_q", values_from = "sum") %>%
-  mutate(
-    across(
-      .cols = c(pain_sites, sa, sens), 
-      .fns = ~as.numeric(scale(.x)), # calculation of z scores here
-      .names = "{.col}_z"),
-    gss = pain_sites_z+sa_z+sens_z # sum of z scores to create "GSS"
-    )
-
 # Saves out GSS data - - - -
-save(gss_data_wide, file = "../output/gss-data-wide.rda")
-write_csv(gss_data_wide, file = "../output/gss-data-wide.csv")
+save(gss_data_long, file = "../output/gss-data-long.rda")
+write_csv(gss_data_long, file = "../output/gss-data-long.csv")
 
 # removes script objects - - - -
 rm(
@@ -161,24 +180,17 @@ rm(
   arm1_screen_data,
   arm2_cmsi,
   arm2_screen_data,
-  bada_res,
-  bada_res_2,
   cmsi_data,
   cmsi_data_pca,
   cmsi_pain_site_ss,
+  cmsi_missing_data,
+  missing_ss,
   crampp_codes,
-  fi,
   gss_data_long,
-  gss_data_wide,
-  pca_res,
   sa_ss_data_ss,
   sa_ss_data_sum,
-  shrs_res,
-  iters
+  cmsi_data_clean
 )
-
-
-
 
 
 # PREVIOUS CODE SOLUTION - - - - -

@@ -66,6 +66,8 @@ redcap_menstrual_data <-
 save(redcap_menstrual_data, file = "../output/redcap-menstrual-data.RData") # RData
 write_csv(redcap_menstrual_data, file = "../output/redcap-menstrual-data.csv") # CSV
 
+# REPLACE THIS WITH THE CMSI-DATA-CLEAN.rda FILE CREATED IN `prepro-gss.R`
+
 # CMSI (is this only at screen?) - edit below
 redcap_cmsi_data <- 
   screen_data_ss %>%

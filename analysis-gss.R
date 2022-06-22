@@ -8,9 +8,9 @@
 source("r-prep.R")
 
 # Loads data
-load("../output/gss-data-wide.rda.")
+load("../output/gss-data-long.rda.") # long format (still need to calc GSS)
 load("../output/mmh-res.RData") # pca res
-load("../output/ss-codes.RData")
+load("../output/ss-codes.RData") # participant codes
 
 # gets factor scores and ss for later
 fi <- 
@@ -19,12 +19,25 @@ fi <-
   left_join(., ss_codes %>% select(ss, group), by = "ss") %>%
   select(ss, group, V1:V40)
 
-# creates long df
-gss_data_long <- gss_data_wide %>% pivot_longer(-ss)
+# calculates GSS here and is in wide format
+gss_data_wide <-
+  gss_data_long %>%
+  filter(ss %in% fi$ss) %>%
+  pivot_wider(id_cols = ss, names_from = "sub_q", values_from = "sum") %>%
+  mutate(
+    across(
+      .cols = c(pain_sites, sa, sens),
+      .fns = ~as.numeric(scale(.x)), # calculation of z scores here
+      .names = "{.col}_z"),
+    gss = pain_sites_z+sa_z+sens_z # sum of z scores to create "GSS"
+    )
+
+# long format after GSS calculation
+gss_long <- gss_data_wide %>% pivot_longer(-ss)
 
 # Histogram
 ggplot(
-  gss_data_long %>% filter(name %in% c("pain_sites", "sa", "sens")), 
+  gss_long %>% filter(name %in% c("pain_sites", "sa", "sens")), 
   aes(value)
   ) +
   geom_histogram(binwidth = 1) +
@@ -33,7 +46,7 @@ ggplot(
   facet_wrap(~name)
 
 ggplot(
-  gss_data_long %>% filter(name %in% c("pain_sites_z", "sa_z", "sens_z", "gss")), 
+  gss_long %>% filter(name %in% c("pain_sites_z", "sa_z", "sens_z", "gss")), 
   aes(value)
 ) +
   geom_histogram(binwidth = 1) +
@@ -43,7 +56,7 @@ ggplot(
 
 # BOXPLOTs
 ggplot(
-  gss_data_long %>% filter(name %in% c("pain_sites", "sa", "sens")), 
+  gss_long %>% filter(name %in% c("pain_sites", "sa", "sens")), 
   aes(name, value, fill = name)) +
   geom_boxplot() +
   labs(x = "GSS Component", y = "Sum") +
@@ -53,7 +66,7 @@ ggplot(
 
 # BOXPLOTs
 ggplot(
-  gss_data_long %>% filter(name %in% c("pain_sites_z", "sa_z", "sens_z", "gss")), 
+  gss_long %>% filter(name %in% c("pain_sites_z", "sa_z", "sens_z", "gss")), 
   aes(name, value, fill = name)) +
   geom_boxplot() +
   labs(x = "GSS Component", y = "Z-Score") +
