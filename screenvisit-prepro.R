@@ -66,20 +66,19 @@ redcap_menstrual_data <-
 save(redcap_menstrual_data, file = "../output/redcap-menstrual-data.RData") # RData
 write_csv(redcap_menstrual_data, file = "../output/redcap-menstrual-data.csv") # CSV
 
-# REPLACE THIS WITH THE CMSI-DATA-CLEAN.rda FILE CREATED IN `prepro-gss.R`
-
-# CMSI (is this only at screen?) - edit below
-redcap_cmsi_data <- 
-  screen_data_ss %>%
-  select(
-    record_number, 
-    redcap_event_name, 
-    ss,
-    starts_with("cmsi_gen")
-  )
-
-save(redcap_cmsi_data, file = "../output/redcap-cmsi-data.RData") # RData
-write_csv(redcap_cmsi_data, file = "../output/redcap-cmsi-data.csv") # CSV
+# This was the old method; use the CMSI-DATA-CLEAN.rda instead (from `prepro-gss.R`)
+# # CMSI (is this only at screen?) - edit below
+# redcap_cmsi_data <- 
+#   screen_data_ss %>%
+#   select(
+#     record_number, 
+#     redcap_event_name, 
+#     ss,
+#     starts_with("cmsi_gen")
+#   )
+# 
+# save(redcap_cmsi_data, file = "../output/redcap-cmsi-data.RData") # RData
+# write_csv(redcap_cmsi_data, file = "../output/redcap-cmsi-data.csv") # CSV
 
 # Cleaning script objects ----
 rm(
@@ -91,12 +90,4 @@ rm(
   arm1_temp,
   arm2_temp,
   redcap_menstrual_data,
-  redcap_cmsi_data
 )
-
-
-
-
-
-
-

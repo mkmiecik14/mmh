@@ -565,7 +565,7 @@ cor_plot # to view
 # uncomment to save out
 # ggsave(
 #   plot = cor_plot,
-#   filename = "../output/cor-plot-v2.svg",
+#   filename = "../output/cor-plot-v3.svg",
 #   width = 6.5,
 #   height = 5,
 #   units = "in"
@@ -632,7 +632,7 @@ cor_data_reg_desc <-
 
 # saves out for manuscript table
 # uncomment to save out
-#write_csv(cor_data_reg_desc, file = "../output/cor-data-reg-desc.csv")
+#write_csv(cor_data_reg_desc, file = "../output/cor-data-reg-desc-v2.csv")
 
 # Preparing IBS data for Sarah ----
 ibs_data <- 

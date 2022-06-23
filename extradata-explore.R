@@ -11,7 +11,9 @@ source("r-prep.R") # Prepare R workspace
 # Loads in data ----
 load("../output/ss-codes.RData")                  # subject codes
 load("../output/redcap-bsi-data.RData")           # BSI
-load("../output/redcap-cmsi-data.RData")          # CMSI
+#load("../output/redcap-cmsi-data.RData")         # CMSI
+# REPLACED CMSI DATA WITH NEW METHOD (see `prepro-gss.R`)
+load("../output/cmsi-data-clean.rda")             # CMSI data
 load("../output/redcap-menstrual-data.RData")     # menstrual data
 load("../output/redcap-gupi-data.RData")          # GUPI
 load("../output/redcap-ic-data.RData")            # ICSI + ICPI
@@ -87,26 +89,29 @@ ggplot(bsi_ss, aes(x = "BSI", y= bsi)) +
 #      #
 ########
 
-# 1 = 3 months during the last year (12 mos)
-# 2 = 3 months during your lifetime
+# see prepro-gss.R for calcs
 
-# rawest data
-cmsi_data <- 
-  redcap_cmsi_data %>% 
-  select(ss:cmsi_gen41___2) %>%
-  pivot_longer(-ss) %>%
-  separate(name, into = c("meas", "q", "time")) %>%
-  filter(complete.cases(.)) # there are a few participants without subject numbers
+# Pivots to longer for plot
+cmsi_ss <- cmsi_data_clean %>% pivot_longer(-ss)
 
-cmsi_ss <-
-  cmsi_data %>%
-  group_by(ss, time) %>%
-  summarise(cmsi = sum(value), n = n()) %>%
-  ungroup()
-# cmsi_ss %>% filter(n<41) # all 41 questions
+# OLD METHOD
+# # rawest data
+# cmsi_data <- 
+#   redcap_cmsi_data %>% 
+#   select(ss:cmsi_gen41___2) %>%
+#   pivot_longer(-ss) %>%
+#   separate(name, into = c("meas", "q", "time")) %>%
+#   filter(complete.cases(.)) # there are a few participants without subject numbers
+# 
+# cmsi_ss <-
+#   cmsi_data %>%
+#   group_by(ss, time) %>%
+#   summarise(cmsi = sum(value), n = n()) %>%
+#   ungroup()
+# # cmsi_ss %>% filter(n<41) # all 41 questions
 
 # PLOT
-ggplot(cmsi_ss, aes(time, cmsi)) +
+ggplot(cmsi_ss, aes(name, value)) +
   geom_point(alpha = 1/3, position = pj) +
   geom_flat_violin(
     position = position_nudge(x = .2, y = 0), 
@@ -594,12 +599,8 @@ bsi_ss_ready <- select(bsi_ss, -n)
 
 # CMSI
 cmsi_ss_ready <-
-  cmsi_ss %>% 
-  select(-n) %>% 
-  pivot_wider(id_cols = ss, names_from = time, values_from = cmsi) %>%
-  # 1 = 3 months during the last year (12 mos)
-  # 2 = 3 months during your lifetime
-  rename(cmsi_3mos_lastyear = `1`, cmsi_3mos_lifetime = `2`)
+  cmsi_data_clean %>% 
+  rename(cmsi_3mos_lastyear = cmsi_3_months, cmsi_3mos_lifetime = cmsi_lifetime)
 
 # menstrual data
 menstrual_ss_ready <- 
