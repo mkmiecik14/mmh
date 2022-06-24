@@ -115,6 +115,8 @@ cmsi_pain_site_ss <-
   mutate(sub_q = "pain_sites") %>%
   mutate(sum = ifelse(ss %in% missing_ss$ss, NA, sum)) # INCLUDES NAs
 
+
+
 ###########################################
 #                                         #
 # Somatic Awareness & Sensory Sensitivity #
@@ -174,6 +176,92 @@ gss_data_long <-
 save(gss_data_long, file = "../output/gss-data-long.rda")
 write_csv(gss_data_long, file = "../output/gss-data-long.csv")
 
+#############
+#           #
+# GSS Brief #
+#           #
+#############
+
+# GSS body site bins (from cmsi_fibro1__n)
+a_head_neck <- c(1, 8, 15)
+b_right_shoulder_arm_hand <- c(9, 10, 11)
+c_left_shoulder_arm_hand <- c(2, 3, 4)
+d_right_hip_leg_food <- c(12, 13, 14)
+e_left_hip_leg_foot <- c(5, 6, 7)
+f_chest_abdomen <- c(17, 18)
+g_back <- c(16, 19)
+
+gss_brief_site_ss <-
+  cmsi_data %>%
+  select(ss, starts_with("cmsi_fibro1")) %>% # pain at sites in last 7 days
+  # removes the no pain column, as can be inferred from the remaining columns
+  select(-cmsi_fibro1___99) %>%
+  pivot_longer(-ss) %>%
+  separate(name, into = c("meas", "time", "site")) %>%
+  mutate(
+    brief = case_when(
+      site %in% a_head_neck ~ "A",
+      site %in% b_right_shoulder_arm_hand ~ "B",
+      site %in% c_left_shoulder_arm_hand ~ "C",
+      site %in% d_right_hip_leg_food ~ "D",
+      site %in% e_left_hip_leg_foot ~ "E",
+      site %in% f_chest_abdomen ~ "F",
+      site %in% g_back ~ "G"
+    )
+  )
+
+# bins regions and summates
+gss_brief_site_ss_check <- 
+  gss_brief_site_ss %>% 
+  group_by(ss, brief) %>%
+  summarise(sum = sum(value), n = n()) %>%
+  ungroup() %>%
+  mutate(checked = ifelse(sum>=1, 1, 0)) # logical whether 1 or more were endorsed
+
+# sums the regions and scores them according to GSS brief
+gss_brief_site_ss_regions <- 
+  gss_brief_site_ss_check %>% 
+  group_by(ss) %>%
+  summarise(regions = sum(checked)) %>%
+  ungroup() %>%
+  # scores the regions according to GSS brief
+  mutate(region_score = case_when(
+    between(regions, 0, 1) ~ 0,
+    between(regions, 2, 3) ~ 1,
+    between(regions, 4, 5) ~ 2,
+    between(regions, 6, 7) ~ 3
+  )
+  ) %>%
+  mutate(region_score = ifelse(ss %in% missing_ss$ss, NA, region_score)) # INCLUDES NAs
+
+gss_brief_symp_score <- 
+  cmsi_data %>%
+  select(
+    ss, 
+    # had any of these symptoms for at least 3 months in the past year (1)
+    cmsi_gen8___1, # dry mouth
+    cmsi_gen8___1, # rapid heart rate
+    cmsi_gen20___1, # problems with balance
+    cmsi_gen35___1, # sensitivity to certain chemicals, such as perfumes, ...
+    cmsi_gen36___1, # sensitivity to sound
+    cmsi_gen39___1 # frequent sensitivity to bright lights
+    ) %>%
+  pivot_longer(-ss) %>% 
+  group_by(ss) %>%
+  summarise(symp_score = sum(value)) %>%
+  ungroup() %>%
+  mutate(symp_score = ifelse(ss %in% missing_ss$ss, NA, symp_score)) # INCLUDES NAs
+
+# combines both site score and symptom score for total gss brief (range = 0-9)
+gss_brief_data <-
+  left_join(gss_brief_site_ss_regions, gss_brief_symp_score, by = "ss") %>%
+  mutate(gss_brief = region_score + symp_score)
+range(gss_brief_data$gss_brief, na.rm = TRUE) # checks range to see 0-9
+
+# saves out gss brief score
+save(gss_brief_data, file = "../output/gss-brief-data.rda") # rda
+write_csv(gss_brief_data, file = "../output/gss-brief-data.csv") # csv
+
 # removes script objects - - - -
 rm(
   arm1_cmsi,
@@ -189,7 +277,24 @@ rm(
   gss_data_long,
   sa_ss_data_ss,
   sa_ss_data_sum,
-  cmsi_data_clean
+  cmsi_data_clean,
+  bada_res,
+  bada_res_2,
+  gss_brief_data,
+  gss_brief_site_ss,
+  gss_brief_site_ss_check,
+  gss_brief_site_ss_regions,
+  gss_brief_symp_score,
+  pca_res,
+  shrs_res,
+  a_head_neck,
+  b_right_shoulder_arm_hand,
+  c_left_shoulder_arm_hand,
+  d_right_hip_leg_food,
+  e_left_hip_leg_foot,
+  f_chest_abdomen,
+  g_back,
+  iters
 )
 
 
