@@ -373,16 +373,17 @@ fi <-
   as_tibble(pca_res$Fixed.Data$ExPosition.Data$fi, rownames = "ss") %>%
   mutate(ss = as.numeric(ss))
 
+# creates data frame for modeling
 sens_mmh_data <- 
   sensory_data %>% 
   left_join(., fi %>% select(ss:V3), by = "ss") %>%
   mutate(
-    V1_mc = as.numeric(scale(V1, scale = FALSE)),
-    V2_mc = as.numeric(scale(V2, scale = FALSE)),
-    V3_mc = as.numeric(scale(V3, scale = FALSE))
+    V1_mc = as.numeric(scale(V1, scale = FALSE)), # mean centers variables
+    V2_mc = as.numeric(scale(V2, scale = FALSE)), # mean centers variables
+    V3_mc = as.numeric(scale(V3, scale = FALSE))  # mean centers variables
     )
 
-# Models
+# Sensory models
 y1_mod_sens <- 
   lm(year1 ~ 1 + year0_mc + qst_z + bladder_z + supra_z, data = sens_mmh_data)
 y2_mod_sens <- 
@@ -392,6 +393,7 @@ y3_mod_sens <-
 y4_mod_sens <- 
   lm(year4 ~ 1 + year0_mc + qst_z + bladder_z + supra_z, data = sens_mmh_data)
 
+# PCA (i.e., MMH) models
 y1_mod_pca <-
   lm(year1 ~ 1 + year0_mc + V1_mc, data = sens_mmh_data)
 y2_mod_pca <-
@@ -401,12 +403,14 @@ y3_mod_pca <-
 y4_mod_pca <-
   lm(year4 ~ 1 + year0_mc + V1_mc, data = sens_mmh_data)
 
+# creates a list of models
 models <- 
   list(
     y1_mod_sens, y2_mod_sens, y3_mod_sens, y4_mod_sens,
     y1_mod_pca, y2_mod_pca, y3_mod_pca, y4_mod_pca
     )
 
+# extracts omnibus info
 models_glance <-
   models %>%
   map_df(~broom::glance(.x), .id = "model") %>%
@@ -419,27 +423,38 @@ models_glance <-
   separate(model, into = c("year", "mod", "meas")) %>%
   mutate(year = as.numeric(gsub("y","",year)))
 
+# AIC plot
 ggplot(models_glance, aes(year, AIC, group = meas, color = meas)) +
   geom_line() +
   theme_bw()
 
+# model summary
 models_glance_long <- 
   models_glance %>% 
-  select(year, meas, r.squared, adj.r.squared, AIC, BIC) %>%
+  select(year, meas, r.squared, adj.r.squared, AIC, BIC, logLik) %>%
   pivot_longer(c(-year, -meas))
 
+# caclulates difference between mods
 models_glance_sum <-
   models_glance_long %>%
   group_by(year, name) %>%
   summarise(value_diff = -1*diff(value)) %>% # -1*(pca-sens) means anything>2 favors PCA
   ungroup()
 
+# computes evidence ratio for AIC according to Burnham, Anderson, Huyvaert (2011)
+models_glance_sum %>% 
+  filter(name %in% c("AIC", "BIC")) %>% 
+  arrange(name,year) %>%
+  mutate(evidence_ratio = exp((1/2)*value_diff))
+
+# plot of various summary measures between mods
 ggplot(models_glance_sum, aes(year, value_diff)) +
   geom_point() +
   geom_path() +
   theme_bw() + 
   facet_wrap(~name, scales = "free")
 
+# AIC vs. BIC plot
 ggplot(
   models_glance_sum %>% filter(name %in% c("AIC", "BIC")),
   aes(year, value_diff, group = name, linetype = name)
