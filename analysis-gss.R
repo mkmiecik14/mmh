@@ -352,6 +352,16 @@ mod_data <-
 #                  #
 ####################
 
+mod_data %>%
+  filter(complete.cases(gss_brief)) %>%
+  summarise(
+    m = mean(gss_brief),
+    sd = sd(gss_brief),
+    n = n(),
+    min = min(gss_brief),
+    max = max(gss_brief)
+    )
+
 # Models
 year0_mod <- lm(year0 ~ 1 + gss_brief_mc + V1_mc, data = mod_data)
 summary(year0_mod)
