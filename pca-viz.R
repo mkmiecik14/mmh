@@ -332,7 +332,7 @@ fj_bsr_plot <- function(x = c(1, 2)){
     geom_text_repel(aes(label = meas), segment.alpha = 0, show.legend = FALSE, max.overlaps = 15) +
     scale_color_brewer(palette = "Paired") +
     scale_shape_manual(values = c(15, 17, 19, 1)) +
-    theme(legend.position = "none") # switch this to "bottom" for legend
+    theme(legend.position = "bottom") # switch this to "bottom" for legend
   
   return(this_plot)
 
