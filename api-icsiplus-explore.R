@@ -94,6 +94,33 @@ ggplot(pelvic_pain_avg, aes(year, pelvic_pain)) + # year
   geom_smooth(method = "lm", se = TRUE, color = rdgy_pal[3]) +
   theme_classic()
 
+# examining collinearity of individual pelvic pain VAS vars
+pp_simple <- 
+  pelvic_pain_data_pca_ss %>% 
+  select(
+    ss, 
+    year, 
+    urination_pain_last_week, 
+    bowel_mov_pain_last_week, 
+    mens_nonmens_pain_week
+    )
+
+pp_simple_cor_res <- 
+  pp_simple %>% 
+  split(.$year) %>%
+  map(~psych::corr.test(
+    select(.x, -ss, -year),
+    use = "pairwise",
+    method = "pearson", 
+    adjust = "none",
+    ci = TRUE,
+    minlength = 100 # extends the abrreviations
+  )
+  )
+
+# correlation results
+pp_simple_cor_res %>% map_dfr("ci", .id = "year")
+  
 # combines with PCA factors
 # factor scores for the rows (subjects)
 fi <-
