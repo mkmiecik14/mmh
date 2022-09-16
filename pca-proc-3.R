@@ -1,8 +1,8 @@
 # Principal Components Analysis Procedure
 # Matt Kmiecik
-# Started 15 SEPTEMBER 2022
+# Started 16 SEPTEMBER 2022
 
-# Purpose: re-run PCA but removing audio/visual 
+# Purpose: re-run PCA but removing slope estimates 
 
 source("r-prep.R") # Prepares R workspace
 
@@ -40,13 +40,13 @@ pca_data <-
 pca_data_discard <- 
   pca_data %>% 
   filter(!complete.cases(.)) %>% # 153 discarded
-  select(-coldpain, -vis_mean, -vis_slope, -aud_mean, -aud_slope)
-  
+  select(-coldpain, -ends_with("slope"))
+
 pca_data_keep <- 
   pca_data %>% 
   filter(complete.cases(.)) %>%  # 200 kept
-  select(-coldpain, -vis_mean, -vis_slope, -aud_mean, -aud_slope)
-  
+  select(-coldpain, -ends_with("slope"))
+
 
 # Converts PCA data to matrix
 pca_data_mat <- as.matrix(select(pca_data_keep, -ss)) # removes ss id
@@ -66,7 +66,7 @@ pca_res <-
 # Saves out PCA results
 save(
   list = c("pca_res", "iters"), 
-  file = "../output/pca-2-res.RData"
+  file = "../output/pca-3-res.RData"
 )
 
 # Cleans up workspace
