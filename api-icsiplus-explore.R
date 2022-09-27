@@ -1320,6 +1320,32 @@ mmh_plot
 #   units = "in"
 #   )
 
+# Question: does baseline pelvic pain change between those that drop off and
+# those that remain - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+pp_attrition <- 
+  pelvic_pain_avg_fi_wide %>% # not mean centered
+  select(ss, year_0:year_4) %>% 
+  mutate(
+    status_y1 = ifelse(is.na(year_1), "dropped", "active"),
+    status_y2 = ifelse(is.na(year_2), "dropped", "active"),
+    status_y3 = ifelse(is.na(year_3), "dropped", "active"),
+    status_y4 = ifelse(is.na(year_4), "dropped", "active")
+    )
+
+pp_attrition_y4 <- 
+  pp_attrition %>% 
+  select(ss, year_0, status_y4) %>% 
+  mutate(status_y4 = as.factor(status_y4))
+contrasts(pp_attrition_y4$status_y4) <- cbind(a_vs_d = c(-.5, .5))
+
+t.test(year_0~status_y4, alternative = "two.sided", paired = FALSE, data = pp_attrition)
+pp_attrition_mod <- lm(year_0 ~ 1 + status_y4, data = pp_attrition_y4)
+summary(pp_attrition_mod)
+
+pp_attrition_y4 %>% 
+  group_by(status_y4) %>%
+  summarise(m = mean(year_0), sd = sd(year_0), n = n(), sem = sd/sqrt(n)) %>%
+  ungroup()
 
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-

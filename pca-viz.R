@@ -640,3 +640,96 @@ ibs_data <-
   left_join(., fi, by = "ss") %>%
   relocate(ss, group, ibs, ibs_sub, V1, V2, V3)
 #write_csv(ibs_data, file = "../output/ibs-data.csv") # writes out to csv  
+
+# Contributions plot - - - -
+# Extracts contributions of columns
+cjs <- as_tibble(pca_res$Fixed.Data$ExPosition.Data$cj, rownames = "meas")
+
+# long format
+cjs_long <- 
+  pivot_longer(cjs, -meas) %>%
+  mutate(
+    meas_new = case_when(
+      meas == "after_pain_12" ~ "AP 12",
+      meas == "after_pain_5" ~ "AP 5",
+      meas == "after_pain_6" ~ "AP 6",         
+      meas == "after_pain_7" ~ "AP 7",     
+      meas == "after_pain_forehead" ~ "AP Forehead",
+      meas == "after_pain_rhip" ~ "AP Hip",
+      meas == "after_pain_rknee" ~ "AP Knee",
+      meas == "after_pain_rshoulder" ~ "AP Shoulder",
+      meas == "aud_mean" ~ "Auditory Mean",             
+      meas == "aud_slope" ~ "Auditory Slope",
+      meas == "bs_pain" ~ "BS Pain",
+      meas == "fs_urg" ~ "FS Urgency",
+      meas == "fs_pain" ~ "FS Pain",
+      meas == "fu_urg" ~ "FU Urgency", 
+      meas == "fu_pain" ~ "FU Pain",
+      meas == "mt_urg" ~ "MT Urgency",            
+      meas == "mt_pain" ~ "MT Pain",
+      meas == "coldpain_resid" ~ "Cold Pain",   
+      meas == "cpm_lknee" ~ "CPM",
+      meas == "ppt_N_rForehead" ~ "PPT Forehead",
+      meas == "ppt_N_rHip" ~ "PPT Hip",
+      meas == "ppt_N_rKnee" ~ "PPT Knee",
+      meas == "ppt_N_rShoulder" ~ "PPT Shoulder", 
+      meas == "ppt_N_12" ~ "PPT 12",   
+      meas == "ppt_N_5" ~ "PPT 5",
+      meas == "ppt_N_6" ~ "PPT 6",   
+      meas == "ppt_N_7" ~ "PPT 7",
+      meas == "bladder_sharp" ~ "Bl. Sharp",
+      meas == "bladder_pressing" ~ "Bl. Pressing", 
+      meas == "bladder_dull" ~ "Bl. Dull",
+      meas == "bladder_prickling" ~ "Bl. Prickling",
+      meas == "vag_sharp" ~ "Vag. Sharp",
+      meas == "vag_pressing" ~ "Vag. Pressing",
+      meas == "vag_dull" ~ "Vag. Dull",
+      meas == "vag_prickling" ~ "Vag. Prickling",
+      meas == "ts_mean" ~ "TS Mean",
+      meas == "ts_slope" ~ "TS Slope",
+      meas == "ts_max" ~ "TS Max",               
+      meas == "vis_mean" ~ "Visual Mean",            
+      meas == "vis_slope" ~ "Visual Slope"
+    )
+    )
+
+contrib_plot <- function(x){
+  ggplot(
+    x, 
+    aes(value, reorder(meas_new, value))
+  ) +
+    geom_segment(
+      aes(
+        x = 0, 
+        xend = value, 
+        y = reorder(meas_new, value), 
+        yend = reorder(meas_new, value)
+      )
+    ) +
+    geom_point(size = 1.5) +
+    facet_wrap(~name) +
+    coord_cartesian(xlim = c(0, .07)) +
+    labs(x = "Contributions", y = "Measure") +
+    theme_bw()
+}
+
+# Here are the plots (were done this way to preserve the reordering)
+cjs_plot <- 
+  contrib_plot(cjs_long %>% filter(name %in% c("V1"))) +
+  contrib_plot(cjs_long %>% filter(name %in% c("V2"))) +
+  contrib_plot(cjs_long %>% filter(name %in% c("V3")))
+cjs_plot
+
+# Saves out for manuscript
+# uncomment to save out
+# ggsave(
+#   filename = "../output/contrib-plot.svg",
+#   plot = cjs_plot,
+#   width = 8,
+#   height = 7.5,
+#   units = "in"
+#   )
+
+
+
+
