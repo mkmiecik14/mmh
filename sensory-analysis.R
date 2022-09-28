@@ -289,8 +289,6 @@ mods_res <-
       )
     )
 
-
-
 # PARTIAL ETA SQUARED PLOT
 pd <- position_dodge(width = .4)
 peta2_plot <- 
@@ -513,3 +511,130 @@ row.names(attrition_cont_mat) <- attrition_cont$group
 
 # Performs chi square test 
 chisq.test(attrition_cont_mat)
+
+
+########################################
+#                                      #
+# EFFECT OF ATTRITION ON QST VARIABLES #
+#                                      #
+########################################
+
+# This determines which year each participant dropped
+year_ss_dropped <- 
+  sens_mmh_data %>% 
+  select(ss, year1:year4) %>% 
+  pivot_longer(-ss) %>%
+  filter(is.na(value)) %>%
+  mutate(name = as.numeric(regmatches(name, regexpr("\\d", name)))) %>%
+  group_by(ss) %>%
+  summarise(year_dropped = min(name)-1) %>% # subtract one to denote years of complete data
+  ungroup()
+
+# inserts the year_dropped info
+sens_mmh_data_yd <- 
+  sens_mmh_data %>% 
+  left_join(., year_ss_dropped, by = "ss") %>%
+  relocate(year_dropped, .after = ss) %>%
+  mutate(year_dropped = ifelse(is.na(year_dropped), "complete data", year_dropped))
+
+# long format
+sens_mmh_data_yd_long <- 
+  sens_mmh_data_yd %>% 
+  select(
+    ss, 
+    year_dropped, 
+    `Audio/Visual` = supra, 
+    `Bladder Test` = bladder, 
+    QST = qst, 
+    MMH = V1, 
+    `PPT S-R` = V2, 
+    `Bladder Hyper.` = V3
+    ) %>%
+  pivot_longer(cols = c(-ss, -year_dropped)) %>%
+  mutate(
+    name = factor(name),
+    name = fct_relevel(
+      name, 
+      c("QST", "Bladder Test", "Audio/Visual", "MMH", "PPT S-R", "Bladder Hyper.")
+      )
+    )
+
+sens_mmh_data_yd_long_sum <- 
+  sens_mmh_data_yd_long %>% 
+  group_by(year_dropped, name) %>%
+  summarise(m = mean(value), sd = sd(value), n = n(), sem = sd/sqrt(n)) %>%
+  ungroup()
+
+
+year_dropped_plot <- function(x){
+  ggplot(
+    x, 
+    aes(year_dropped, m)
+  ) +
+    geom_hline(yintercept =  0, color = "darkgrey", linetype = 2) +
+    geom_point() +
+    geom_errorbar(aes(ymin = m-sem, ymax = m+sem), width = .2) +
+    labs(x = "Years of Annual Data", caption = "SEM error bars.") +
+    theme_bw() +
+    facet_wrap(~name)
+}
+
+
+part1 <- 
+  year_dropped_plot(
+  sens_mmh_data_yd_long_sum %>% 
+    filter(name %in% c("QST", "Bladder Test", "Audio/Visual"))
+  ) +
+  labs(y = "Summed Z-Score") +
+  coord_cartesian(ylim = c(-5,5)) +
+  scale_y_continuous(minor_breaks = NULL)
+
+part2 <- 
+  year_dropped_plot(
+    sens_mmh_data_yd_long_sum %>% 
+      filter(name %in% c("MMH", "PPT S-R", "Bladder Hyper."))
+  ) +
+  labs(y = "Factor Score") +
+  coord_cartesian(ylim = c(-1,1)) +
+  scale_y_continuous(minor_breaks = NULL)
+
+sens_mmh_data_yd_long_sum %>% 
+  select(year_dropped, n) %>% 
+  distinct() %>%
+  ggplot(., aes(year_dropped, n)) + 
+  geom_bar(stat = "identity", fill = "grey", color = "black", width = .5) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 60)) +
+  labs(x = "Years of Annual Data", y = "Sample Size (n)")
+  
+
+part1 / part2
+
+# ANOVAs
+library(ez)
+
+# using ezAnova
+yd_mods <- 
+  sens_mmh_data_yd_long %>%
+  split(.$name) %>%
+  map(~ezANOVA(.x, dv = value, wid = ss, between = year_dropped, detailed = TRUE))
+
+# same thing but using aov() so that we can easily use TukeyHSD()
+yd_mods_2 <- 
+  sens_mmh_data_yd_long %>%
+  split(.$name) %>%
+  map(~aov(value ~ factor(year_dropped), data = .x))
+
+yd_mods_2 %>% map_dfr(~tidy(.x), .id = "mod")
+
+# pairwise comparisons after Tukey corrections
+tukey_comps <- 
+  yd_mods_2 %>% 
+  map(~TukeyHSD(.x, conf.level=.95)) %>% 
+  map("factor(year_dropped)") %>%
+  map_dfr(~as_tibble(.x, rownames = "comparisons"), .id = "mod")
+
+tukey_comps %>% filter(`p adj` <= .05) # none are significant
+
+  
+
