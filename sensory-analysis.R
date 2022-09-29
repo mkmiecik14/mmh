@@ -607,8 +607,24 @@ sens_mmh_data_yd_long_sum %>%
   coord_cartesian(ylim = c(0, 60)) +
   labs(x = "Years of Annual Data", y = "Sample Size (n)")
   
+# Attrition means plot
+attrition_plot <- part1 / part2
+attrition_plot
+ggsave(
+  filename = "../output/attrition-means.svg",
+  plot = attrition_plot,
+  width = 5,
+  height = 4.5,
+  units = "in"
+)
 
-part1 / part2
+# ggsave(
+#   filename = "../output/sensory-res-plot.svg",
+#   plot = sensory_res_plot,
+#   width = 6,
+#   height = 6,
+#   units = "in"
+#   )
 
 # ANOVAs
 library(ez) # loads ez for ezAnova()

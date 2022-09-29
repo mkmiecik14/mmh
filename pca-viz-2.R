@@ -89,64 +89,84 @@ boot_res_long <-
   pivot_longer(-meas, values_to = "bsr", names_to = "comp") %>%
   mutate(comp = as.numeric(gsub("V", "", comp))) %>%
   arrange(comp) %>%
-  mutate(sig = abs(bsr) > critical_val) # calculates significance (think like t-test)
-
+  mutate(sig = abs(bsr) > critical_val) %>% # calculates significance (think like t-test)
+  mutate(
+    meas_new = case_when(
+      meas == "after_pain_12" ~ "AP 12",
+      meas == "after_pain_5" ~ "AP 5",
+      meas == "after_pain_6" ~ "AP 6",         
+      meas == "after_pain_7" ~ "AP 7",     
+      meas == "after_pain_forehead" ~ "AP Forehead",
+      meas == "after_pain_rhip" ~ "AP Hip",
+      meas == "after_pain_rknee" ~ "AP Knee",
+      meas == "after_pain_rshoulder" ~ "AP Shoulder",
+      meas == "aud_mean" ~ "Auditory Mean",             
+      meas == "aud_slope" ~ "Auditory Slope",
+      meas == "bs_pain" ~ "BS Pain",
+      meas == "fs_urg" ~ "FS Urgency",
+      meas == "fs_pain" ~ "FS Pain",
+      meas == "fu_urg" ~ "FU Urgency", 
+      meas == "fu_pain" ~ "FU Pain",
+      meas == "mt_urg" ~ "MT Urgency",            
+      meas == "mt_pain" ~ "MT Pain",
+      meas == "coldpain_resid" ~ "Cold Pain",   
+      meas == "cpm_lknee" ~ "CPM",
+      meas == "ppt_N_rForehead" ~ "PPT Forehead",
+      meas == "ppt_N_rHip" ~ "PPT Hip",
+      meas == "ppt_N_rKnee" ~ "PPT Knee",
+      meas == "ppt_N_rShoulder" ~ "PPT Shoulder", 
+      meas == "ppt_N_12" ~ "PPT 12",   
+      meas == "ppt_N_5" ~ "PPT 5",
+      meas == "ppt_N_6" ~ "PPT 6",   
+      meas == "ppt_N_7" ~ "PPT 7",
+      meas == "bladder_sharp" ~ "Bl. Sharp",
+      meas == "bladder_pressing" ~ "Bl. Pressing", 
+      meas == "bladder_dull" ~ "Bl. Dull",
+      meas == "bladder_prickling" ~ "Bl. Prickling",
+      meas == "vag_sharp" ~ "Vag. Sharp",
+      meas == "vag_pressing" ~ "Vag. Pressing",
+      meas == "vag_dull" ~ "Vag. Dull",
+      meas == "vag_prickling" ~ "Vag. Prickling",
+      meas == "ts_mean" ~ "TS Mean",
+      meas == "ts_slope" ~ "TS Slope",
+      meas == "ts_max" ~ "TS Max",               
+      meas == "vis_mean" ~ "Visual Mean",            
+      meas == "vis_slope" ~ "Visual Slope"
+    )
+  )
+  
 # Bootstrapped Results
-# COMPONENT 1
-this_comp <- 1
-this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
-axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
-comp_1_bsr_plot <-
-  ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Bootstrap Ratio", y = "Measure") +
-  scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
-  geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
-  scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = NULL, limits = c(-9, 9)) +
-  theme_minimal() +
-  theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
-comp_1_bsr_plot
-
-# COMPONENT 2
-this_comp <- 2
-this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
-axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
-comp_2_bsr_plot <- 
-  ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Bootstrap Ratio", y = "Measure") +
-  scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
-  geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
-  scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = TRUE, limits = c(-9, 9)) +
-  theme_minimal() +
-  theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
-comp_2_bsr_plot
-
-# COMPONENT 3
-this_comp <- 3
-this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
-axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
-comp_3_bsr_plot <- 
-  ggplot(this_data, aes(bsr, reorder(meas, bsr), fill = sig)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Bootstrap Ratio", y = "Measure") +
-  scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
-  geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
-  scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = TRUE, limits = c(-9, 9)) +
-  theme_minimal() +
-  theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
-comp_3_bsr_plot
+bsr_ggplot <- function(data, comp){
+  this_comp <- comp
+  this_data <- boot_res_long %>% filter(comp == this_comp) %>% arrange(bsr)
+  axisFace <- ifelse(this_data$sig == TRUE, "bold", "plain")
+  this_plot <-
+    ggplot(this_data, aes(bsr, reorder(meas_new, bsr), fill = sig)) +
+    geom_bar(stat = "identity") +
+    labs(x = "Bootstrap Ratio", y = "Measure") +
+    scale_fill_manual(values = c(rdgy_pal[8], rdgy_pal[3])) +
+    geom_vline(xintercept = c(-critical_val, critical_val), linetype = 2, alpha = 1.3) +
+    scale_x_continuous(breaks = seq(-8, 8, 2), minor_breaks = NULL, limits = c(-9, 9)) +
+    theme_minimal() +
+    facet_wrap(~comp) +
+    theme(legend.position = "none", axis.text.y = element_text(face = axisFace))
+  return(this_plot)
+}
 
 # all three for manuscript
-bsr_plot <- comp_1_bsr_plot + comp_2_bsr_plot + comp_3_bsr_plot
+bsr_plot <- 
+  bsr_ggplot(boot_res_long, 1) + 
+  bsr_ggplot(boot_res_long, 2) + 
+  bsr_ggplot(boot_res_long, 3) 
+
 bsr_plot
 # Saves out for manuscript
 # uncomment to save out
 # ggsave(
-#   filename = "../output/bsr-plot.svg",
+#   filename = "../output/pca-2-bsr-plot.svg",
 #   plot = bsr_plot,
-#   width = 8,
-#   height = 7.5,
+#   width = 6,
+#   height = 5.5,
 #   units = "in"
 #   )
 
@@ -420,7 +440,7 @@ check_model(mod_y4)
 compare_performance(mod_y1, mod_y2, mod_y3, mod_y4, rank = TRUE)
 
 # models in a list
-mods <- list(mod_y1, mod_y2, mod_y3, mod_y4, mod_y5)
+mods <- list(mod_y1, mod_y2, mod_y3, mod_y4)
 
 # sample sizes
 mods %>%
@@ -517,6 +537,15 @@ peta2_plot <-
   coord_cartesian(ylim = c(0, .25)) +
   theme(legend.position = "none")
 peta2_plot #plots
+# saves out for manuscript
+# uncomment out to save
+# ggsave(
+#   filename = "../output/pca-2-partial-etas.svg",
+#   plot = peta2_plot,
+#   width = 5,
+#   height = 4.5,
+#   units = "in"
+#   )
 
 # BETA PLOT
 beta_plot <- 
@@ -593,3 +622,5 @@ reg_res_table <-
 # saves out table for publication
 # uncomment to save out
 # write_csv(reg_res_table, file = "../output/reg-res-table.csv")
+
+
