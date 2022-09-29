@@ -611,7 +611,7 @@ sens_mmh_data_yd_long_sum %>%
 part1 / part2
 
 # ANOVAs
-library(ez)
+library(ez) # loads ez for ezAnova()
 
 # using ezAnova
 yd_mods <- 
@@ -625,16 +625,38 @@ yd_mods_2 <-
   split(.$name) %>%
   map(~aov(value ~ factor(year_dropped), data = .x))
 
-yd_mods_2 %>% map_dfr(~tidy(.x), .id = "mod")
+# creating an anova table for publication purposes
+yd_anova_table <- 
+  yd_mods_2 %>% 
+  map_dfr(~tidy(.x), .id = "mod") %>% # extract model info
+  mutate(
+    term = ifelse(term == "factor(year_dropped)", "Years of Annual Data", term)
+    ) %>%
+  rename(Model = mod, Term = term, SS = sumsq, MS = meansq, F = statistic, p = p.value)
+# saving out table
+# uncomment to save out
+# write_csv(yd_anova_table, file = "../output/yd-anova-table.csv")
 
 # pairwise comparisons after Tukey corrections
 tukey_comps <- 
   yd_mods_2 %>% 
   map(~TukeyHSD(.x, conf.level=.95)) %>% 
   map("factor(year_dropped)") %>%
-  map_dfr(~as_tibble(.x, rownames = "comparisons"), .id = "mod")
+  map_dfr(~as_tibble(.x, rownames = "comparisons"), .id = "mod") %>%
+  rename(
+    Model = mod, 
+    Comparisons = comparisons, 
+    `Mean Difference` = diff,
+    LL = lwr, UL = upr, p = `p adj`
+    )
 
-tukey_comps %>% filter(`p adj` <= .05) # none are significant
+tukey_comps %>% filter(p <= .05) # none survive corrections
+
+# saving out tukey pairwise table for publication
+# uncomment to save out
+# write_csv(tukey_comps, file = "../output/tukey-comps.csv")
+
+
 
   
 
